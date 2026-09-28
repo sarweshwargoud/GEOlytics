@@ -12,6 +12,9 @@ import {
   Lightbulb,
   FlaskConical,
   Brain,
+  Copy,
+  Check,
+  Printer,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -32,6 +35,7 @@ export default function ReportsPage() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
   const [loadingReports, setLoadingReports] = useState(false)
   const [generatingReport, setGeneratingReport] = useState(false)
+  const [copied, setCopied] = useState(false)
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // 1. Load user projects
@@ -42,26 +46,29 @@ export default function ReportsPage() {
         const res = await api.get<ProjectListResponse>('/api/v1/projects')
         const items = res.projects || []
         setProjects(items)
-        const qpId = searchParams.get('projectId')
+        const qpId = searchParams.get('projectId') || searchParams.get('project')
         if (qpId && items.some((p) => p.id === qpId)) {
           setSelectedProjectId(qpId)
         } else if (items.length > 0) {
           setSelectedProjectId(items[0].id)
         }
-      } catch (err: any) {
-        setStatusMessage({ type: 'error', text: err?.message || 'Failed to load projects' })
+      } catch (err: unknown) {
+        setStatusMessage({
+          type: 'error',
+          text: err instanceof Error ? err.message : 'Failed to load projects',
+        })
       } finally {
         setLoadingProjects(false)
       }
     }
     loadProjects()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 2. Load reports for selected project
   useEffect(() => {
     if (!selectedProjectId) return
     loadReports(selectedProjectId)
-  }, [selectedProjectId])
+  }, [selectedProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadReports = async (projectId: string) => {
     setLoadingReports(true)
@@ -74,8 +81,11 @@ export default function ReportsPage() {
       } else {
         setSelectedReport(null)
       }
-    } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err?.message || 'Failed to load reports' })
+    } catch (err: unknown) {
+      setStatusMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to load reports',
+      })
     } finally {
       setLoadingReports(false)
     }
@@ -86,23 +96,35 @@ export default function ReportsPage() {
     setGeneratingReport(true)
     setStatusMessage(null)
     try {
-      const res = await api.post<any>(`/api/v1/reports/generate?project_id=${selectedProjectId}`, {
-        report_type: 'weekly_intelligence',
-        period_days: 7,
-      })
+      const res = await api.post<{ message?: string }>(
+        `/api/v1/reports/generate?project_id=${selectedProjectId}`,
+        {
+          report_type: 'weekly_intelligence',
+          period_days: 7,
+        }
+      )
       setStatusMessage({
         type: 'success',
         text: res.message || 'Weekly intelligence report generated successfully.',
       })
       await loadReports(selectedProjectId)
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatusMessage({
         type: 'error',
-        text: err?.message || 'Failed to generate report. Please try again.',
+        text: err instanceof Error ? err.message : 'Failed to generate report. Please try again.',
       })
     } finally {
       setGeneratingReport(false)
     }
+  }
+
+  const handleCopySummary = () => {
+    if (!selectedReport) return
+    navigator.clipboard.writeText(
+      `GEOlytics ${selectedReport.report_type.replace(/_/g, ' ').toUpperCase()} REPORT (${new Date(selectedReport.period_start).toLocaleDateString()} - ${new Date(selectedReport.period_end).toLocaleDateString()}):\n\n${selectedReport.summary}`
+    )
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   if (loadingProjects) {
@@ -110,35 +132,42 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto animate-fade-in pb-12">
       {/* ── Page Header ─────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/90">
         <div>
-          <h1 className="text-xl font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-            <FileText className="text-[var(--color-primary-600)]" size={24} />
-            Intelligence Reports
-          </h1>
-          <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-            Automated, evidence-driven weekly reporting across SEO, AI search visibility, competitor shifts, and learning.
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">
+              Intelligence Reports
+            </h1>
+            <Badge variant="seo">Automated Digest</Badge>
+          </div>
+          <p className="text-xs text-slate-500">
+            Evidence-driven weekly synthesis across SEO performance, AI search citations, competitor insights, and verified learning.
           </p>
         </div>
 
         {/* Project Selector & Actions */}
-        <div className="flex items-center gap-3">
-          <select
-            value={selectedProjectId}
-            onChange={(e) => {
-              setSelectedProjectId(e.target.value)
-              setSearchParams({ projectId: e.target.value })
-            }}
-            className="text-xs font-medium bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-3 py-2 text-[var(--color-text-primary)] shadow-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-500)]"
-          >
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-2.5">
+          {projects.length > 0 && (
+            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs">
+              <span className="text-xs font-semibold text-slate-500">Project:</span>
+              <select
+                value={selectedProjectId}
+                onChange={(e) => {
+                  setSelectedProjectId(e.target.value)
+                  setSearchParams({ project: e.target.value })
+                }}
+                className="text-xs font-semibold bg-transparent text-slate-900 cursor-pointer focus:outline-none"
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <Button
             size="sm"
@@ -148,12 +177,12 @@ export default function ReportsPage() {
           >
             {generatingReport ? (
               <>
-                <RotateCw size={14} className="animate-spin" />
+                <RotateCw size={13} className="animate-spin" />
                 Compiling Report...
               </>
             ) : (
               <>
-                <Play size={14} />
+                <Play size={13} />
                 Generate Report Now
               </>
             )}
@@ -163,10 +192,10 @@ export default function ReportsPage() {
 
       {statusMessage && (
         <div
-          className={`p-3.5 rounded-lg text-xs flex items-center justify-between ${
+          className={`p-3.5 rounded-xl text-xs flex items-center justify-between animate-scale-in ${
             statusMessage.type === 'success'
-              ? 'bg-[var(--color-success-light)] text-[var(--color-success)] border border-[var(--color-success)]/20'
-              : 'bg-[var(--color-danger-light)] text-[var(--color-danger)] border border-[var(--color-danger)]/20'
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border border-rose-200'
           }`}
         >
           <span>{statusMessage.text}</span>
@@ -174,7 +203,7 @@ export default function ReportsPage() {
             onClick={() => setStatusMessage(null)}
             className="text-xs font-bold hover:opacity-75 ml-2"
           >
-            ×
+            ✕
           </button>
         </div>
       )}
@@ -183,20 +212,21 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Reports Archive List */}
         <div className="lg:col-span-4 space-y-3">
-          <h2 className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
+          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+            <FileText size={13} className="text-blue-600" />
             Report Archive ({reports.length})
           </h2>
 
           {loadingReports ? (
-            <Card className="p-6 text-center text-xs text-[var(--color-text-secondary)]">
-              <RotateCw size={18} className="animate-spin mx-auto mb-2 text-[var(--color-primary-600)]" />
-              Loading reports...
+            <Card className="p-6 text-center text-xs text-slate-400">
+              <RotateCw size={18} className="animate-spin mx-auto mb-2 text-blue-600" />
+              Loading report archive...
             </Card>
           ) : reports.length === 0 ? (
-            <Card className="p-8 text-center">
-              <FileText size={32} className="mx-auto text-[var(--color-text-tertiary)] mb-2" />
-              <p className="text-xs font-medium text-[var(--color-text-primary)]">No reports generated yet</p>
-              <p className="text-[11px] text-[var(--color-text-secondary)] mt-1 mb-4">
+            <Card className="p-8 text-center border-dashed border-slate-300">
+              <FileText size={32} className="mx-auto text-slate-300 mb-2" />
+              <p className="text-xs font-bold text-slate-900">No reports generated yet</p>
+              <p className="text-[11px] text-slate-500 mt-1 mb-4 leading-relaxed">
                 Weekly intelligence reports generate automatically on schedule, or you can trigger one now.
               </p>
               <Button size="sm" onClick={handleGenerateReport} disabled={generatingReport}>
@@ -211,27 +241,28 @@ export default function ReportsPage() {
                   <button
                     key={rep.id}
                     onClick={() => setSelectedReport(rep)}
-                    className={`w-full text-left p-3.5 rounded-lg border transition-all ${
+                    className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-[var(--color-primary-50)] border-[var(--color-primary-400)] shadow-xs'
-                        : 'bg-[var(--color-surface)] border-[var(--color-border)] hover:bg-[var(--color-surface-tertiary)]'
+                        ? 'bg-blue-50/70 border-blue-400 shadow-xs ring-1 ring-blue-500/20'
+                        : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-[var(--color-text-primary)] capitalize">
-                        {rep.report_type.replace('_', ' ')}
+                      <span className="text-xs font-bold text-slate-900 capitalize">
+                        {rep.report_type.replace(/_/g, ' ')}
                       </span>
                       <Badge variant="neutral" className="text-[10px]">
                         {new Date(rep.created_at).toLocaleDateString()}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-secondary)] mt-1.5">
-                      <Calendar size={12} />
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-1">
+                      <Calendar size={12} className="text-slate-400" />
                       <span>
-                        {new Date(rep.period_start).toLocaleDateString()} – {new Date(rep.period_end).toLocaleDateString()}
+                        {new Date(rep.period_start).toLocaleDateString()} –{' '}
+                        {new Date(rep.period_end).toLocaleDateString()}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[var(--color-text-tertiary)] line-clamp-2 mt-2 leading-relaxed">
+                    <p className="text-[11px] text-slate-500 line-clamp-2 mt-2 leading-relaxed">
                       {rep.summary}
                     </p>
                   </button>
@@ -246,209 +277,242 @@ export default function ReportsPage() {
           {selectedReport ? (
             <div className="space-y-6">
               {/* Overview Header Card */}
-              <Card className="p-6 border-t-4 border-t-[var(--color-primary-600)]">
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-[var(--color-border)]">
+              <Card hoverLift className="p-6 border-t-4 border-t-blue-600">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-slate-100">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-bold text-[var(--color-text-primary)] capitalize">
-                        {selectedReport.report_type.replace('_', ' ')} Report
+                      <h2 className="text-base font-bold text-slate-900 capitalize">
+                        {selectedReport.report_type.replace(/_/g, ' ')} Digest
                       </h2>
-                      <Badge variant="seo">Verified Data</Badge>
+                      <Badge variant="seo">Verified Telemetry</Badge>
                     </div>
-                    <p className="text-xs text-[var(--color-text-secondary)] mt-1 flex items-center gap-2">
-                      <Calendar size={13} />
+                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                      <Calendar size={13} className="text-slate-400" />
                       Period: {new Date(selectedReport.period_start).toLocaleDateString()} to{' '}
                       {new Date(selectedReport.period_end).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="text-right text-[11px] text-[var(--color-text-tertiary)]">
-                    <p>Generated: {new Date(selectedReport.created_at).toLocaleString()}</p>
-                    <p className="mt-0.5">Status: <span className="text-[var(--color-success)] font-medium">Completed</span></p>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      onClick={handleCopySummary}
+                      title="Copy summary text"
+                    >
+                      {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                      {copied ? 'Copied' : 'Copy'}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      onClick={() => window.print()}
+                      title="Print or Save as PDF"
+                    >
+                      <Printer size={12} /> Print
+                    </Button>
                   </div>
                 </div>
 
                 {/* Executive Summary */}
                 <div className="pt-4">
-                  <h3 className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-1.5">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                     Executive Summary
                   </h3>
-                  <p className="text-xs text-[var(--color-text-primary)] leading-relaxed bg-[var(--color-surface-secondary)] p-3 rounded-md border border-[var(--color-border)]">
+                  <div className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                     {selectedReport.summary}
-                  </p>
+                  </div>
                 </div>
 
                 {/* Mandatory Data Freshness & Latency Notice */}
-                <div className="mt-4 p-3 rounded-md bg-[var(--color-warning-light)] border border-[var(--color-warning)]/20 text-[11px] text-[var(--color-warning)] flex items-start gap-2">
-                  <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+                <div className="mt-4 p-3 rounded-lg bg-amber-50/70 border border-amber-200/80 text-[11px] text-amber-900 flex items-start gap-2">
+                  <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-semibold">Search Console Data Freshness:</span> Google Search Console
-                    reporting reflects a standard 48–72 hour data delay. AI search visibility metrics represent
-                    real-time observed groundings across connected models.
+                    <span className="font-semibold">Search Console Data Freshness: </span>
+                    Google Search Console telemetry reflects standard 48–72h official API latency. AI search visibility metrics represent observable search-grounded citations across configured engines.
                   </div>
                 </div>
               </Card>
 
               {/* 1. SEO Performance Section */}
-              <Card className="p-6">
+              <Card hoverLift className="p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="text-[var(--color-primary-600)]" size={18} />
-                  <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  <TrendingUp className="text-blue-600" size={18} />
+                  <h3 className="text-sm font-bold text-slate-900">
                     Search Console (SEO) Performance
                   </h3>
                 </div>
 
                 {selectedReport.data.seo_performance ? (
                   <div className="space-y-4">
-                    <p className="text-xs text-[var(--color-text-secondary)]">
+                    <p className="text-xs text-slate-600">
                       {selectedReport.data.seo_performance.summary}
                     </p>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="p-3 bg-[var(--color-surface-secondary)] rounded-md border border-[var(--color-border)]">
-                        <span className="text-[10px] text-[var(--color-text-tertiary)] block">Total Clicks</span>
-                        <span className="text-base font-bold text-[var(--color-text-primary)]">
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Total Clicks</span>
+                        <span className="text-base font-extrabold text-slate-900">
                           {(selectedReport.data.seo_performance.total_clicks || 0).toLocaleString()}
                         </span>
                       </div>
-                      <div className="p-3 bg-[var(--color-surface-secondary)] rounded-md border border-[var(--color-border)]">
-                        <span className="text-[10px] text-[var(--color-text-tertiary)] block">Impressions</span>
-                        <span className="text-base font-bold text-[var(--color-text-primary)]">
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Impressions</span>
+                        <span className="text-base font-extrabold text-slate-900">
                           {(selectedReport.data.seo_performance.total_impressions || 0).toLocaleString()}
                         </span>
                       </div>
-                      <div className="p-3 bg-[var(--color-surface-secondary)] rounded-md border border-[var(--color-border)]">
-                        <span className="text-[10px] text-[var(--color-text-tertiary)] block">Average CTR</span>
-                        <span className="text-base font-bold text-[var(--color-text-primary)]">
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Average CTR</span>
+                        <span className="text-base font-extrabold text-slate-900">
                           {((selectedReport.data.seo_performance.average_ctr || 0) * 100).toFixed(2)}%
                         </span>
                       </div>
-                      <div className="p-3 bg-[var(--color-surface-secondary)] rounded-md border border-[var(--color-border)]">
-                        <span className="text-[10px] text-[var(--color-text-tertiary)] block">Average Position</span>
-                        <span className="text-base font-bold text-[var(--color-text-primary)]">
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Average Position</span>
+                        <span className="text-base font-extrabold text-slate-900">
                           {(selectedReport.data.seo_performance.average_position || 0).toFixed(1)}
                         </span>
                       </div>
                     </div>
 
                     {/* Top Queries Table */}
-                    {selectedReport.data.seo_performance.top_queries && selectedReport.data.seo_performance.top_queries.length > 0 && (
-                      <div className="mt-3">
-                        <span className="text-[11px] font-semibold text-[var(--color-text-secondary)] block mb-2">
-                          Top Search Queries
-                        </span>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
-                            <thead>
-                              <tr className="border-b border-[var(--color-border)] text-[var(--color-text-tertiary)] text-[10px]">
-                                <th className="pb-1.5 font-semibold">Query</th>
-                                <th className="pb-1.5 font-semibold text-right">Clicks</th>
-                                <th className="pb-1.5 font-semibold text-right">Impressions</th>
-                                <th className="pb-1.5 font-semibold text-right">CTR</th>
-                                <th className="pb-1.5 font-semibold text-right">Position</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--color-border)]">
-                              {selectedReport.data.seo_performance.top_queries.slice(0, 5).map((q, idx) => (
-                                <tr key={idx} className="hover:bg-[var(--color-surface-tertiary)]">
-                                  <td className="py-2 text-[var(--color-text-primary)] font-medium max-w-[200px] truncate">{q.query}</td>
-                                  <td className="py-2 text-right">{q.clicks}</td>
-                                  <td className="py-2 text-right">{q.impressions.toLocaleString()}</td>
-                                  <td className="py-2 text-right">{(q.ctr * 100).toFixed(1)}%</td>
-                                  <td className="py-2 text-right font-medium">{q.position.toFixed(1)}</td>
+                    {selectedReport.data.seo_performance.top_queries &&
+                      selectedReport.data.seo_performance.top_queries.length > 0 && (
+                        <div className="mt-3">
+                          <span className="text-xs font-bold text-slate-700 block mb-2">
+                            Top Search Queries
+                          </span>
+                          <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                            <table className="w-full text-left text-xs">
+                              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 text-[11px] font-semibold">
+                                <tr>
+                                  <th className="py-2 px-3">Query</th>
+                                  <th className="py-2 px-3 text-right">Clicks</th>
+                                  <th className="py-2 px-3 text-right">Impressions</th>
+                                  <th className="py-2 px-3 text-right">CTR</th>
+                                  <th className="py-2 px-3 text-right">Position</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 bg-white">
+                                {selectedReport.data.seo_performance.top_queries.slice(0, 5).map((q, idx) => (
+                                  <tr key={idx} className="hover:bg-slate-50/80">
+                                    <td className="py-2 px-3 text-slate-900 font-semibold max-w-[200px] truncate">
+                                      {q.query}
+                                    </td>
+                                    <td className="py-2 px-3 text-right font-bold text-blue-600">
+                                      {q.clicks}
+                                    </td>
+                                    <td className="py-2 px-3 text-right text-slate-600">
+                                      {q.impressions.toLocaleString()}
+                                    </td>
+                                    <td className="py-2 px-3 text-right text-slate-600">
+                                      {(q.ctr * 100).toFixed(1)}%
+                                    </td>
+                                    <td className="py-2 px-3 text-right font-mono font-medium">
+                                      {q.position.toFixed(1)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </div>
                 ) : (
-                  <p className="text-xs text-[var(--color-text-secondary)] italic">
+                  <p className="text-xs text-slate-400 italic">
                     Search Console metrics not yet connected or available for this period.
                   </p>
                 )}
               </Card>
 
               {/* 2. GEO / AI Search Visibility Section */}
-              <Card className="p-6">
+              <Card hoverLift className="p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <Bot className="text-[var(--color-primary-600)]" size={18} />
-                  <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  <Bot className="text-purple-600" size={18} />
+                  <h3 className="text-sm font-bold text-slate-900">
                     GEO / AI Search Visibility Observations
                   </h3>
                 </div>
 
                 {selectedReport.data.geo_visibility ? (
                   <div className="space-y-4">
-                    <p className="text-xs text-[var(--color-text-secondary)]">
+                    <p className="text-xs text-slate-600">
                       {selectedReport.data.geo_visibility.summary}
                     </p>
 
                     <div className="grid grid-cols-3 gap-3">
-                      <div className="p-3 bg-[var(--color-surface-secondary)] rounded-md border border-[var(--color-border)]">
-                        <span className="text-[10px] text-[var(--color-text-tertiary)] block">Queries Tested</span>
-                        <span className="text-base font-bold text-[var(--color-text-primary)]">
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Queries Tested</span>
+                        <span className="text-base font-extrabold text-slate-900">
                           {selectedReport.data.geo_visibility.tested_queries_count || 0}
                         </span>
                       </div>
-                      <div className="p-3 bg-[var(--color-surface-secondary)] rounded-md border border-[var(--color-border)]">
-                        <span className="text-[10px] text-[var(--color-text-tertiary)] block">Citations Observed</span>
-                        <span className="text-base font-bold text-[var(--color-primary-600)]">
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Citations Observed</span>
+                        <span className="text-base font-extrabold text-purple-600">
                           {selectedReport.data.geo_visibility.total_citations_observed || 0}
                         </span>
                       </div>
-                      <div className="p-3 bg-[var(--color-surface-secondary)] rounded-md border border-[var(--color-border)]">
-                        <span className="text-[10px] text-[var(--color-text-tertiary)] block">Brand Mentions</span>
-                        <span className="text-base font-bold text-[var(--color-text-primary)]">
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Brand Mentions</span>
+                        <span className="text-base font-extrabold text-slate-900">
                           {selectedReport.data.geo_visibility.total_brand_mentions || 0}
                         </span>
                       </div>
                     </div>
 
-                    {selectedReport.data.geo_visibility.citations && selectedReport.data.geo_visibility.citations.length > 0 && (
-                      <div className="mt-3">
-                        <span className="text-[11px] font-semibold text-[var(--color-text-secondary)] block mb-2">
-                          Recent Observed Citations
-                        </span>
-                        <div className="space-y-1.5">
-                          {selectedReport.data.geo_visibility.citations.map((c, i) => (
-                            <div
-                              key={i}
-                              className="text-xs p-2.5 rounded bg-[var(--color-surface-secondary)] border border-[var(--color-border)] flex items-center justify-between"
-                            >
-                              <div className="truncate max-w-[70%]">
-                                <span className="font-semibold text-[var(--color-text-primary)]">"{c.query}"</span>
-                                <span className="text-[11px] text-[var(--color-text-tertiary)] block truncate mt-0.5">
-                                  {c.cited_url || 'Website referenced'}
-                                </span>
+                    {selectedReport.data.geo_visibility.citations &&
+                      selectedReport.data.geo_visibility.citations.length > 0 && (
+                        <div className="mt-3">
+                          <span className="text-xs font-bold text-slate-700 block mb-2">
+                            Recent Observed Citations
+                          </span>
+                          <div className="space-y-1.5">
+                            {selectedReport.data.geo_visibility.citations.map((c, i) => (
+                              <div
+                                key={i}
+                                className="text-xs p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between"
+                              >
+                                <div className="truncate max-w-[70%]">
+                                  <span className="font-semibold text-slate-900">"{c.query}"</span>
+                                  <span className="text-[11px] text-slate-400 block truncate mt-0.5 font-mono">
+                                    {c.cited_url || 'Website referenced'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <Badge variant="geo" className="capitalize text-[10px]">
+                                    {c.provider}
+                                  </Badge>
+                                  {c.brand_mentioned && (
+                                    <Badge variant="success" className="text-[10px]" dot>
+                                      Mention
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-1.5">
-                                <Badge variant="geo" className="capitalize text-[10px]">{c.provider}</Badge>
-                                {c.brand_mentioned && <Badge variant="success" className="text-[10px]">Mention</Badge>}
-                              </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </div>
                 ) : (
-                  <p className="text-xs text-[var(--color-text-secondary)] italic">
+                  <p className="text-xs text-slate-400 italic">
                     No AI visibility groundings observed for this period.
                   </p>
                 )}
               </Card>
 
               {/* 3. Competitor Intelligence Section */}
-              <Card className="p-6">
+              <Card hoverLift className="p-6">
                 <div className="flex items-center gap-2 mb-3">
-                  <Globe className="text-[var(--color-primary-600)]" size={18} />
-                  <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  <Globe className="text-blue-600" size={18} />
+                  <h3 className="text-sm font-bold text-slate-900">
                     Competitor Intelligence (Tavily Grounded)
                   </h3>
                 </div>
-                <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
+                <p className="text-xs text-slate-600 leading-relaxed">
                   {selectedReport.data.competitor_insights?.summary ||
                     'Independent web groundings monitor competitors for comparison tables, FAQ schemas, and updated informational content.'}
                 </p>
@@ -457,55 +521,96 @@ export default function ReportsPage() {
               {/* 4. Recommendations & Active Experiments Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Recommendations */}
-                <Card className="p-5">
+                <Card hoverLift className="p-5">
                   <div className="flex items-center gap-2 mb-3">
-                    <Lightbulb className="text-[var(--color-warning)]" size={16} />
-                    <h3 className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wider">
+                    <Lightbulb className="text-amber-600" size={16} />
+                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                       Recommendations
                     </h3>
                   </div>
-                  <div className="flex items-center gap-3 text-xs mb-3">
-                    <span>Total: <strong>{selectedReport.data.recommendations?.total_count || 0}</strong></span>
-                    <span>Pending: <strong className="text-[var(--color-warning)]">{selectedReport.data.recommendations?.pending_count || 0}</strong></span>
-                    <span>High Priority: <strong className="text-[var(--color-danger)]">{selectedReport.data.recommendations?.high_priority_count || 0}</strong></span>
+                  <div className="flex items-center gap-3 text-xs mb-3 text-slate-600">
+                    <span>
+                      Total: <strong>{selectedReport.data.recommendations?.total_count || 0}</strong>
+                    </span>
+                    <span>
+                      Pending:{' '}
+                      <strong className="text-amber-600">
+                        {selectedReport.data.recommendations?.pending_count || 0}
+                      </strong>
+                    </span>
+                    <span>
+                      High Priority:{' '}
+                      <strong className="text-rose-600">
+                        {selectedReport.data.recommendations?.high_priority_count || 0}
+                      </strong>
+                    </span>
                   </div>
                   <div className="space-y-2">
                     {(selectedReport.data.recommendations?.items || []).map((r: any) => (
-                      <div key={r.id} className="p-2.5 rounded bg-[var(--color-surface-secondary)] border border-[var(--color-border)] text-xs">
+                      <div
+                        key={r.id}
+                        className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs"
+                      >
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-[var(--color-text-primary)] truncate max-w-[80%]">{r.title}</span>
-                          <Badge variant={r.priority === 'high' ? 'danger' : 'neutral'} className="text-[9px]">
+                          <span className="font-semibold text-slate-900 truncate max-w-[80%]">
+                            {r.title}
+                          </span>
+                          <Badge
+                            variant={r.priority === 'high' ? 'danger' : 'neutral'}
+                            className="text-[9px]"
+                          >
                             {r.priority}
                           </Badge>
                         </div>
-                        <p className="text-[11px] text-[var(--color-text-secondary)] mt-1 line-clamp-1">{r.action}</p>
+                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{r.action}</p>
                       </div>
                     ))}
                   </div>
                 </Card>
 
                 {/* Experiments */}
-                <Card className="p-5">
+                <Card hoverLift className="p-5">
                   <div className="flex items-center gap-2 mb-3">
-                    <FlaskConical className="text-[var(--color-primary-600)]" size={16} />
-                    <h3 className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wider">
+                    <FlaskConical className="text-blue-600" size={16} />
+                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                       Experiments
                     </h3>
                   </div>
-                  <div className="flex items-center gap-3 text-xs mb-3">
-                    <span>Active: <strong className="text-[var(--color-primary-600)]">{selectedReport.data.experiments?.active_count || 0}</strong></span>
-                    <span>Completed: <strong>{selectedReport.data.experiments?.completed_count || 0}</strong></span>
+                  <div className="flex items-center gap-3 text-xs mb-3 text-slate-600">
+                    <span>
+                      Active:{' '}
+                      <strong className="text-blue-600">
+                        {selectedReport.data.experiments?.active_count || 0}
+                      </strong>
+                    </span>
+                    <span>
+                      Completed:{' '}
+                      <strong>
+                        {selectedReport.data.experiments?.completed_count || 0}
+                      </strong>
+                    </span>
                   </div>
                   <div className="space-y-2">
                     {(selectedReport.data.experiments?.items || []).map((exp: any) => (
-                      <div key={exp.id} className="p-2.5 rounded bg-[var(--color-surface-secondary)] border border-[var(--color-border)] text-xs">
+                      <div
+                        key={exp.id}
+                        className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs"
+                      >
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-[var(--color-text-primary)] truncate max-w-[70%]">{exp.name}</span>
-                          <Badge variant={exp.status === 'measuring' ? 'info' : 'neutral'} className="text-[9px]">
+                          <span className="font-semibold text-slate-900 truncate max-w-[70%]">
+                            {exp.name}
+                          </span>
+                          <Badge
+                            variant={exp.status === 'measuring' ? 'info' : 'neutral'}
+                            className="text-[9px]"
+                            dot
+                          >
                             {exp.status}
                           </Badge>
                         </div>
-                        <p className="text-[11px] text-[var(--color-text-secondary)] mt-1 line-clamp-1">{exp.hypothesis}</p>
+                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">
+                          {exp.hypothesis}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -513,29 +618,33 @@ export default function ReportsPage() {
               </div>
 
               {/* 5. What GEOlytics Learned (Hindsight Memory) */}
-              <Card className="p-6">
+              <Card hoverLift className="p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <Brain className="text-[var(--color-primary-600)]" size={18} />
-                  <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  <Brain className="text-purple-600" size={18} />
+                  <h3 className="text-sm font-bold text-slate-900">
                     What GEOlytics Learned (Hindsight Long-Term Memory)
                   </h3>
                 </div>
 
-                {selectedReport.data.hindsight_learnings && selectedReport.data.hindsight_learnings.length > 0 ? (
+                {selectedReport.data.hindsight_learnings &&
+                selectedReport.data.hindsight_learnings.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {selectedReport.data.hindsight_learnings.map((mem, i) => (
-                      <div key={i} className="p-3.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border)] text-xs">
-                        <span className="font-semibold text-[var(--color-text-primary)] block mb-1">
+                      <div
+                        key={i}
+                        className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1"
+                      >
+                        <span className="font-bold text-slate-900 block">
                           {mem.title}
                         </span>
-                        <p className="text-[11px] text-[var(--color-text-secondary)] leading-relaxed">
+                        <p className="text-[11px] text-slate-600 leading-relaxed">
                           {mem.content}
                         </p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-[var(--color-text-secondary)] italic">
+                  <p className="text-xs text-slate-400 italic">
                     No new Hindsight reflections synthesized for this period.
                   </p>
                 )}
@@ -543,11 +652,11 @@ export default function ReportsPage() {
 
               {/* 6. Documented Limitations */}
               {selectedReport.data.limitations && selectedReport.data.limitations.length > 0 && (
-                <div className="p-4 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border)] text-xs">
-                  <span className="font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider block text-[10px] mb-2">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <span className="font-bold text-slate-400 uppercase tracking-wider block text-[10px] mb-2">
                     Methodological Limitations & Constraints
                   </span>
-                  <ul className="space-y-1 text-[11px] text-[var(--color-text-secondary)] list-disc pl-4">
+                  <ul className="space-y-1 text-[11px] text-slate-600 list-disc pl-4">
                     {selectedReport.data.limitations.map((lim, i) => (
                       <li key={i}>{lim}</li>
                     ))}
@@ -556,7 +665,7 @@ export default function ReportsPage() {
               )}
             </div>
           ) : (
-            <Card className="p-12 text-center text-xs text-[var(--color-text-secondary)]">
+            <Card className="p-12 text-center text-xs text-slate-400">
               Select a report from the archive to inspect its metrics and insights.
             </Card>
           )}

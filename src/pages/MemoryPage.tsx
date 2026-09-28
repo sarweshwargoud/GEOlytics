@@ -11,10 +11,14 @@ import {
   Calendar,
   AlertCircle,
   FlaskConical,
+  Search,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
+import Input from '@/components/ui/Input'
 import { LoadingState } from '@/components/ui/StateDisplay'
 import { useApi } from '@/hooks/useApi'
 import type {
@@ -35,6 +39,8 @@ export default function MemoryPage() {
   const [memories, setMemories] = useState<AgentMemory[]>([])
   const [loadingMemories, setLoadingMemories] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [expandedMemoryId, setExpandedMemoryId] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
 
   // 1. Fetch user projects
@@ -90,98 +96,108 @@ export default function MemoryPage() {
     setSearchParams({ project: id })
   }
 
+  const filteredMemories = memories.filter((m) => {
+    if (!searchQuery.trim()) return true
+    const q = searchQuery.toLowerCase()
+    return (
+      m.title.toLowerCase().includes(q) ||
+      m.content.toLowerCase().includes(q) ||
+      (m.tags && m.tags.some((t) => t.toLowerCase().includes(q)))
+    )
+  })
+
   if (loadingProjects) {
     return <LoadingState message="Loading projects..." />
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in pb-12">
       {/* ── Header ────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/90">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-              <Brain size={18} />
-            </div>
-            <h1 className="text-xl font-bold text-[var(--color-text-primary)]">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">
               Agent Long-Term Memory (Hindsight)
             </h1>
-            <Badge variant="geo">Persistent Agent Memory</Badge>
+            <Badge variant="geo">Persistent Recall</Badge>
           </div>
-          <p className="text-xs text-[var(--color-text-tertiary)]">
-            What GEOlytics has retained from historical experiments, previous SEO audits, citation changes, and user decisions.
+          <p className="text-xs text-slate-500">
+            Retained intelligence from historical experiments, previous SEO audits, citation changes, and user decisions.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {projects.length > 0 && (
-            <select
-              value={selectedProjectId}
-              onChange={(e) => handleProjectChange(e.target.value)}
-              className="text-xs font-medium bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-500)] shadow-sm"
-            >
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.website_url})
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs">
+              <span className="text-xs font-semibold text-slate-500">Project:</span>
+              <select
+                value={selectedProjectId}
+                onChange={(e) => handleProjectChange(e.target.value)}
+                className="text-xs font-semibold bg-transparent text-slate-900 cursor-pointer focus:outline-none"
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
 
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => fetchMemories(selectedProjectId)}
             disabled={loadingMemories}
           >
             <RotateCw size={13} className={loadingMemories ? 'animate-spin' : ''} />
-            Refresh Memory
+            Refresh
           </Button>
         </div>
       </div>
 
       {/* ── Learned from Experiments Section (Phase 5) ── */}
-      <Card className="p-5 border-blue-200/80 bg-gradient-to-r from-blue-50/40 to-indigo-50/30">
+      <Card hoverLift className="p-5 border-blue-200/80 bg-gradient-to-r from-blue-50/30 via-white to-indigo-50/20">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <FlaskConical size={16} className="text-blue-600" />
-            <h2 className="text-sm font-bold text-gray-900">
-              Learned from experiments
+            <h2 className="text-sm font-bold text-slate-900">
+              Closed-Loop Experiment Learnings
             </h2>
           </div>
-          <Badge variant="info">Closed-Loop Learning</Badge>
+          <Badge variant="info">Verified Post-Measurement</Badge>
         </div>
-        <p className="text-xs text-gray-600 mb-3.5">
-          Real before-vs-after evidence retained from completed SEO and GEO trials. Neutral wording distinguishes observations from assumptions.
+        <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+          Concrete before-vs-after evidence retained from completed SEO and GEO trials. Neutral wording distinguishes observations from assumptions.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
           {/* Proven / observed strategies */}
-          <div className="bg-white p-3 rounded-lg border border-emerald-200 text-xs shadow-xs space-y-1">
+          <div className="bg-white p-3.5 rounded-xl border border-emerald-200 text-xs shadow-2xs space-y-1">
             <div className="flex items-center gap-1.5 text-emerald-800 font-bold text-[11px] uppercase tracking-wide">
-              <CheckCircle2 size={13} className="text-emerald-600" /> Proven / observed strategies
+              <CheckCircle2 size={13} className="text-emerald-600" /> Proven Strategies
             </div>
-            <p className="text-gray-700 text-[11px] leading-relaxed">
+            <p className="text-slate-600 text-[11px] leading-relaxed">
               Comparison content → positive observed CTR change and increased citations during evaluation window.
             </p>
           </div>
 
           {/* Cautionary lessons */}
-          <div className="bg-white p-3 rounded-lg border border-amber-200 text-xs shadow-xs space-y-1">
+          <div className="bg-white p-3.5 rounded-xl border border-amber-200 text-xs shadow-2xs space-y-1">
             <div className="flex items-center gap-1.5 text-amber-800 font-bold text-[11px] uppercase tracking-wide">
-              <AlertTriangle size={13} className="text-amber-600" /> Cautionary lessons
+              <AlertTriangle size={13} className="text-amber-600" /> Cautionary Precedents
             </div>
-            <p className="text-gray-700 text-[11px] leading-relaxed">
+            <p className="text-slate-600 text-[11px] leading-relaxed">
               Keyword-density-only → no meaningful observed improvement during measurement period.
             </p>
           </div>
 
           {/* Insufficient evidence */}
-          <div className="bg-white p-3 rounded-lg border border-purple-200 text-xs shadow-xs space-y-1">
+          <div className="bg-white p-3.5 rounded-xl border border-purple-200 text-xs shadow-2xs space-y-1">
             <div className="flex items-center gap-1.5 text-purple-800 font-bold text-[11px] uppercase tracking-wide">
-              <Sparkles size={13} className="text-purple-600" /> Insufficient evidence
+              <Sparkles size={13} className="text-purple-600" /> Insufficient Evidence
             </div>
-            <p className="text-gray-700 text-[11px] leading-relaxed">
+            <p className="text-slate-600 text-[11px] leading-relaxed">
               FAQ optimization → measurement window too short or search impression volume too low to establish trend.
             </p>
           </div>
@@ -189,60 +205,66 @@ export default function MemoryPage() {
       </Card>
 
       {errorMessage && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-xs flex items-center justify-between">
+        <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-xs flex items-center justify-between animate-scale-in">
           <div className="flex items-center gap-2">
             <AlertCircle size={15} />
             <span>{errorMessage}</span>
           </div>
           <button
             onClick={() => setErrorMessage('')}
-            className="text-red-500 hover:text-red-700 font-bold"
+            className="text-rose-500 hover:text-rose-700 font-bold"
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* ── Category Filters ────────────────────────────────────── */}
-      <div className="flex items-center gap-2 text-xs">
-        <span className="text-[var(--color-text-tertiary)] font-medium">Category:</span>
-        {['all', 'seo', 'geo', 'technical', 'content', 'approval'].map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setCategoryFilter(cat)}
-            className={`px-3 py-1 rounded-md capitalize transition-colors font-medium ${
-              categoryFilter === cat
-                ? 'bg-[var(--color-primary-50)] text-[var(--color-primary-700)] font-semibold'
-                : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)]'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
+      {/* ── Search & Category Filters ────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-2 bg-slate-100 p-0.5 rounded-lg border border-slate-200/80">
+          {['all', 'seo', 'geo', 'technical', 'content', 'approval'].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={`px-3 py-1 rounded-md capitalize transition-all font-medium ${
+                categoryFilter === cat
+                  ? 'bg-white text-blue-700 font-semibold shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
 
-        <span className="ml-auto text-[11px] text-[var(--color-text-tertiary)]">
-          {memories.length} persistent memor{memories.length === 1 ? 'y' : 'ies'}
-        </span>
+        <div className="w-full sm:w-64">
+          <Input
+            placeholder="Search memories..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            icon={<Search size={13} />}
+          />
+        </div>
       </div>
 
       {/* ── Memories List ──────────────────────────────────────── */}
       {loadingMemories ? (
-        <LoadingState message="Recalling memories from Hindsight..." />
-      ) : memories.length === 0 ? (
-        <Card className="p-8 text-center border-dashed">
-          <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center mx-auto mb-3">
+        <LoadingState message="Recalling memories from Hindsight..." type="skeleton" />
+      ) : filteredMemories.length === 0 ? (
+        <Card className="p-10 text-center border-dashed border-slate-300">
+          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto mb-3">
             <Brain size={22} />
           </div>
-          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">
-            No Specific Memories Recorded For This Filter
+          <h3 className="text-sm font-bold text-slate-900 mb-1">
+            No Specific Memories Found
           </h3>
-          <p className="text-xs text-[var(--color-text-secondary)] max-w-md mx-auto">
-            Memories are automatically retained whenever you approve, reject, or run recommendations and intelligence pipelines.
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            Memories are automatically retained whenever you approve, reject, or complete experiments and intelligence pipelines.
           </p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {memories.map((mem) => {
+          {filteredMemories.map((mem, index) => {
             let icon = <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
             let borderStyle = 'border-l-4 border-l-emerald-500'
 
@@ -254,31 +276,52 @@ export default function MemoryPage() {
               borderStyle = 'border-l-4 border-l-blue-500'
             }
 
+            const isExpanded = expandedMemoryId === mem.id
+
             return (
-              <Card key={mem.id} className={`p-4 ${borderStyle} flex flex-col justify-between`}>
+              <Card
+                key={mem.id}
+                hoverLift
+                className={`p-4 ${borderStyle} flex flex-col justify-between transition-all`}
+                style={{ animationDelay: `${index * 40}ms` }}
+              >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       {icon}
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">
-                        {mem.category} • {mem.memory_type.replace('_', ' ')}
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                        {mem.category} • {mem.memory_type.replace(/_/g, ' ')}
                       </span>
                     </div>
-                    <span className="text-[10px] text-gray-400 font-mono">
+                    <span className="text-[10px] text-slate-400 font-mono">
                       {Math.round(mem.confidence * 100)}% confidence
                     </span>
                   </div>
 
-                  <h3 className="text-xs font-bold text-[var(--color-text-primary)]">
+                  <h3 className="text-xs font-bold text-slate-900">
                     {mem.title}
                   </h3>
 
-                  <p className="text-xs text-gray-600 leading-relaxed">
+                  <p
+                    className={`text-xs text-slate-600 leading-relaxed ${
+                      !isExpanded && mem.content.length > 180 ? 'line-clamp-3' : ''
+                    }`}
+                  >
                     {mem.content}
                   </p>
+
+                  {mem.content.length > 180 && (
+                    <button
+                      onClick={() => setExpandedMemoryId(isExpanded ? null : mem.id)}
+                      className="text-[11px] text-blue-600 font-semibold hover:underline flex items-center gap-0.5 pt-0.5"
+                    >
+                      {isExpanded ? 'Show less' : 'Read full insight'}
+                      {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    </button>
+                  )}
                 </div>
 
-                <div className="mt-3 pt-2.5 border-t border-[var(--color-border)] flex items-center justify-between text-[10px] text-gray-400">
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
                   <div className="flex items-center gap-1">
                     <Tag size={10} />
                     <span>{mem.tags?.join(', ') || 'strategy'}</span>

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
-  Lightbulb,
   Play,
   RotateCw,
   CheckCircle2,
@@ -12,10 +11,13 @@ import {
   Brain,
   FlaskConical,
   X,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
+import AnimatedNumber from '@/components/ui/AnimatedNumber'
 import { LoadingState } from '@/components/ui/StateDisplay'
 import { useApi } from '@/hooks/useApi'
 import type {
@@ -45,6 +47,9 @@ export default function RecommendationsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [typeFilter, setTypeFilter] = useState<string>('all')
+
+  // Expanded items in list
+  const [expandedRecId, setExpandedRecId] = useState<string | null>(null)
 
   // Detail & Rejection Modals
   const [selectedRecForDetail, setSelectedRecForDetail] = useState<Recommendation | null>(null)
@@ -177,37 +182,37 @@ export default function RecommendationsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in pb-12">
       {/* ── Header ────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/90">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-              <Lightbulb size={18} />
-            </div>
-            <h1 className="text-xl font-bold text-[var(--color-text-primary)]">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">
               Recommendation Intelligence
             </h1>
-            <Badge variant="seo">LangGraph + Hindsight</Badge>
+            <Badge variant="seo">LangGraph Reasoning</Badge>
           </div>
-          <p className="text-xs text-[var(--color-text-tertiary)]">
-            Evidence-based recommendations reasoned over SEO audits, Search Console, GEO citations, and persistent Hindsight memory.
+          <p className="text-xs text-slate-500">
+            Evidence-based recommendations reasoned over SEO audits, Search Console, GEO citations, and Hindsight memory.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {projects.length > 0 && (
-            <select
-              value={selectedProjectId}
-              onChange={(e) => handleProjectChange(e.target.value)}
-              className="text-xs font-medium bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-500)] shadow-sm"
-            >
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.website_url})
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs">
+              <span className="text-xs font-semibold text-slate-500">Project:</span>
+              <select
+                value={selectedProjectId}
+                onChange={(e) => handleProjectChange(e.target.value)}
+                className="text-xs font-semibold bg-transparent text-slate-900 cursor-pointer focus:outline-none"
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
 
           <Button
@@ -231,22 +236,39 @@ export default function RecommendationsPage() {
       </div>
 
       {/* ── Mandatory Human Approval Notice ───────────────────── */}
-      <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-lg text-xs text-blue-900 flex items-center gap-2.5">
+      <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs text-blue-900 flex items-center gap-2.5">
         <ShieldCheck size={18} className="text-blue-600 shrink-0" />
         <div className="leading-relaxed">
-          <strong className="font-semibold">Human Approval Mandatory:</strong> The agent synthesizes observations, hypotheses, and experiments, but never modifies your website automatically. All recommendations require your explicit review and approval.
+          <strong className="font-semibold text-blue-950">Human Approval Mandatory: </strong>
+          The agent synthesizes observations, hypotheses, and experiments, but never modifies your website automatically. All recommendations require your explicit review and approval.
         </div>
       </div>
 
+      {runningAgent && (
+        <Card className="p-4 bg-purple-50/60 border-purple-200/80 animate-pulse">
+          <div className="flex items-center gap-3">
+            <RotateCw size={18} className="animate-spin text-purple-600 shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-purple-950">
+                LangGraph Multi-Node Intelligence Agent Active
+              </p>
+              <p className="text-[11px] text-purple-700 mt-0.5">
+                Synthesizing crawl audits, Search Console, GEO citations & recalling Hindsight memory...
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {errorMessage && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-xs flex items-center justify-between">
+        <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-xs flex items-center justify-between animate-scale-in">
           <div className="flex items-center gap-2">
             <AlertCircle size={15} />
             <span>{errorMessage}</span>
           </div>
           <button
             onClick={() => setErrorMessage('')}
-            className="text-red-500 hover:text-red-700 font-bold"
+            className="text-rose-500 hover:text-rose-700 font-bold"
           >
             ✕
           </button>
@@ -254,7 +276,7 @@ export default function RecommendationsPage() {
       )}
 
       {successMessage && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg text-xs flex items-center justify-between">
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-xs flex items-center justify-between animate-scale-in">
           <div className="flex items-center gap-2">
             <CheckCircle2 size={15} className="text-emerald-600" />
             <span>{successMessage}</span>
@@ -269,14 +291,14 @@ export default function RecommendationsPage() {
       )}
 
       {/* ── Filters Bar ────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="text-[var(--color-text-tertiary)] font-medium">Filter by:</span>
+      <div className="flex flex-wrap items-center gap-2.5 text-xs">
+        <span className="text-slate-400 font-medium">Filter by:</span>
 
         {/* Status */}
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2.5 py-1 text-[var(--color-text-secondary)] font-medium focus:outline-none"
+          className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 font-medium shadow-xs focus:outline-none"
         >
           <option value="all">All Statuses</option>
           <option value="pending">Pending Approval</option>
@@ -288,7 +310,7 @@ export default function RecommendationsPage() {
         <select
           value={priorityFilter}
           onChange={(e) => setPriorityFilter(e.target.value)}
-          className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2.5 py-1 text-[var(--color-text-secondary)] font-medium focus:outline-none"
+          className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 font-medium shadow-xs focus:outline-none"
         >
           <option value="all">All Priorities</option>
           <option value="critical">Critical</option>
@@ -301,7 +323,7 @@ export default function RecommendationsPage() {
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2.5 py-1 text-[var(--color-text-secondary)] font-medium focus:outline-none"
+          className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 font-medium shadow-xs focus:outline-none"
         >
           <option value="all">All Categories</option>
           <option value="content">Content</option>
@@ -311,23 +333,24 @@ export default function RecommendationsPage() {
           <option value="geo_visibility">GEO Visibility</option>
         </select>
 
-        <span className="ml-auto text-[11px] text-[var(--color-text-tertiary)]">
-          Showing {recommendations.length} recommendation{recommendations.length === 1 ? '' : 's'}
+        <span className="ml-auto text-[11px] text-slate-400">
+          Showing <AnimatedNumber value={recommendations.length} /> proposal
+          {recommendations.length === 1 ? '' : 's'}
         </span>
       </div>
 
       {/* ── Recommendations List ──────────────────────────────── */}
       {loadingRecs ? (
-        <LoadingState message="Loading recommendations..." />
+        <LoadingState message="Loading recommendations..." type="skeleton" />
       ) : recommendations.length === 0 ? (
-        <Card className="p-8 text-center border-dashed">
-          <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3">
+        <Card className="p-10 text-center border-dashed border-slate-300">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3">
             <Sparkles size={22} />
           </div>
-          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">
+          <h3 className="text-sm font-bold text-slate-900 mb-1">
             No Recommendations Generated Yet
           </h3>
-          <p className="text-xs text-[var(--color-text-secondary)] max-w-md mx-auto mb-4">
+          <p className="text-xs text-slate-500 max-w-md mx-auto mb-4 leading-relaxed">
             Click "Run Intelligence Agent" to execute the 9-node LangGraph pipeline. It will synthesize audit findings, Search Console performance, GEO visibility, and Hindsight memory to generate evidence-backed proposals.
           </p>
           <Button
@@ -340,58 +363,65 @@ export default function RecommendationsPage() {
           </Button>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {recommendations.map((rec) => {
+        <div className="space-y-3.5">
+          {recommendations.map((rec, index) => {
             const isPending = rec.status === 'pending'
             const isApproved = rec.status === 'approved'
             const isRejected = rec.status === 'rejected'
+            const isExpanded = expandedRecId === rec.id
 
             return (
-              <Card key={rec.id} className="p-5 transition-shadow hover:shadow-md">
+              <Card
+                key={rec.id}
+                hoverLift
+                className={`p-5 transition-all ${
+                  isPending ? 'border-l-4 border-l-amber-500' : isApproved ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-slate-300'
+                }`}
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                   <div className="space-y-1.5 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      {/* Priority */}
-                      <span
-                        className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                      <Badge
+                        variant={
                           rec.priority === 'critical'
-                            ? 'bg-red-100 text-red-800'
+                            ? 'danger'
                             : rec.priority === 'high'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}
+                            ? 'warning'
+                            : 'info'
+                        }
+                        className="text-[10px]"
+                        dot
                       >
                         {rec.priority} Priority
-                      </span>
+                      </Badge>
 
-                      {/* Type */}
-                      <span className="text-[10px] uppercase font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-700">
-                        {rec.type.replace('_', ' ')}
-                      </span>
+                      <Badge variant="neutral" className="text-[10px]">
+                        {rec.type.replace(/_/g, ' ')}
+                      </Badge>
 
-                      {/* Status */}
                       {isPending && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-yellow-50 text-yellow-800 border border-yellow-200">
-                          ● Pending Review
-                        </span>
+                        <Badge variant="warning" className="text-[10px]">
+                          Pending Review
+                        </Badge>
                       )}
                       {isApproved && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          ✓ Approved
-                        </span>
+                        <Badge variant="success" className="text-[10px]">
+                          Approved
+                        </Badge>
                       )}
                       {isRejected && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-                          ✕ Rejected
-                        </span>
+                        <Badge variant="neutral" className="text-[10px]">
+                          Rejected
+                        </Badge>
                       )}
 
-                      <span className="text-[11px] text-[var(--color-text-tertiary)] ml-auto font-mono">
+                      <span className="text-[11px] text-slate-400 ml-auto font-mono">
                         Confidence: {Math.round(rec.confidence * 100)}%
                       </span>
                     </div>
 
-                    <h3 className="text-base font-bold text-[var(--color-text-primary)]">
+                    <h3 className="text-sm font-bold text-slate-900 mt-1">
                       {rec.title}
                     </h3>
                   </div>
@@ -400,39 +430,39 @@ export default function RecommendationsPage() {
                 {/* Body Content */}
                 <div className="mt-3.5 space-y-3 text-xs">
                   {/* Action */}
-                  <div className="p-3 bg-[var(--color-surface-secondary)] rounded-lg border border-[var(--color-border)]">
-                    <span className="text-[11px] font-bold uppercase text-[var(--color-text-secondary)] block mb-1">
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/80">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
                       Action to Test:
                     </span>
-                    <p className="text-[var(--color-text-primary)] font-medium leading-relaxed">
+                    <p className="text-slate-900 font-semibold leading-relaxed">
                       {rec.action}
                     </p>
                   </div>
 
-                  {/* Why (Reason) & Hypothesis */}
+                  {/* Why & Hypothesis */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="p-3 bg-white rounded-lg border border-[var(--color-border)]">
-                      <span className="text-[11px] font-bold text-gray-500 uppercase block mb-1">
+                    <div className="p-3 bg-white rounded-lg border border-slate-200/80">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
                         Why (Evidence-Based Reason):
                       </span>
-                      <p className="text-gray-700 leading-relaxed">{rec.reason}</p>
+                      <p className="text-slate-600 leading-relaxed">{rec.reason}</p>
                     </div>
 
-                    <div className="p-3 bg-white rounded-lg border border-[var(--color-border)]">
-                      <span className="text-[11px] font-bold text-gray-500 uppercase block mb-1">
+                    <div className="p-3 bg-white rounded-lg border border-slate-200/80">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
                         Hypothesis:
                       </span>
-                      <p className="text-gray-700 leading-relaxed">{rec.hypothesis}</p>
+                      <p className="text-slate-600 leading-relaxed">{rec.hypothesis}</p>
                     </div>
                   </div>
 
                   {/* Supporting Evidence */}
-                  {rec.evidence && rec.evidence.length > 0 && (
-                    <div className="bg-gray-50/70 p-2.5 rounded border border-gray-200">
-                      <span className="text-[11px] font-bold text-gray-600 block mb-1">
+                  {rec.evidence && rec.evidence.length > 0 && isExpanded && (
+                    <div className="bg-slate-50/70 p-3 rounded-lg border border-slate-200 animate-slide-down">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
                         Supporting Evidence:
                       </span>
-                      <ul className="list-disc list-inside space-y-0.5 text-[11px] text-gray-600">
+                      <ul className="list-disc list-inside space-y-0.5 text-[11px] text-slate-600">
                         {rec.evidence.map((ev, idx) => (
                           <li key={idx}>{ev}</li>
                         ))}
@@ -442,24 +472,26 @@ export default function RecommendationsPage() {
 
                   {/* Historical Learning (Hindsight) */}
                   {rec.historical_memory && rec.historical_memory.length > 0 && (
-                    <div className="bg-purple-50/60 border border-purple-100 p-2.5 rounded text-purple-900 text-[11px] flex items-start gap-2">
-                      <Brain size={14} className="text-purple-600 shrink-0 mt-0.5" />
+                    <div className="bg-purple-50/70 border border-purple-200/80 p-3 rounded-lg text-purple-900 text-xs flex items-start gap-2.5">
+                      <Brain size={15} className="text-purple-600 shrink-0 mt-0.5" />
                       <div>
-                        <strong className="font-semibold">Hindsight Historical Learning:</strong>{' '}
-                        <span>{rec.historical_memory[0]}</span>
+                        <strong className="font-semibold text-purple-950">
+                          Hindsight Historical Learning:{' '}
+                        </strong>
+                        <span className="text-purple-800">{rec.historical_memory[0]}</span>
                       </div>
                     </div>
                   )}
 
                   {/* Experiment & Measurement */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-[var(--color-border)] text-[11px] text-gray-500">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
                     <div>
-                      <span className="font-semibold text-gray-700">Measure via:</span>{' '}
+                      <span className="font-semibold text-slate-700">Measure via:</span>{' '}
                       {rec.measurement_criteria?.join(', ') || 'Organic clicks & position stability'}
                     </div>
 
                     {isRejected && rec.rejection_reason && (
-                      <div className="text-red-600 font-medium">
+                      <div className="text-rose-600 font-semibold">
                         Rejection reason: {rec.rejection_reason}
                       </div>
                     )}
@@ -467,19 +499,28 @@ export default function RecommendationsPage() {
                 </div>
 
                 {/* Footer Action Buttons */}
-                <div className="mt-4 pt-3 border-t border-[var(--color-border)] flex items-center justify-between">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedRecForDetail(rec)}
-                  >
-                    View Full Intelligence Dossier
-                  </Button>
+                <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setExpandedRecId(isExpanded ? null : rec.id)}
+                      className="text-xs text-blue-600 font-semibold hover:underline flex items-center gap-1"
+                    >
+                      {isExpanded ? 'Less Details' : 'More Evidence'}
+                      {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => setSelectedRecForDetail(rec)}
+                    >
+                      Full Dossier
+                    </Button>
+                  </div>
 
                   {isPending && (
                     <div className="flex items-center gap-2">
                       <Button
-                        variant="outline"
+                        variant="secondary"
                         size="sm"
                         onClick={() => {
                           setRejectingRec(rec)
@@ -487,7 +528,7 @@ export default function RecommendationsPage() {
                         }}
                         disabled={submittingAction}
                       >
-                        <XCircle size={13} className="text-red-500" />
+                        <XCircle size={13} className="text-rose-500" />
                         Reject
                       </Button>
                       <Button
@@ -497,7 +538,7 @@ export default function RecommendationsPage() {
                         disabled={submittingAction}
                       >
                         <CheckCircle2 size={13} />
-                        Approve Recommendation
+                        Approve Proposal
                       </Button>
                     </div>
                   )}
@@ -510,7 +551,9 @@ export default function RecommendationsPage() {
                       <Button
                         variant="primary"
                         size="sm"
-                        onClick={() => navigate(`/experiments?project=${selectedProjectId}&fromRec=${rec.id}`)}
+                        onClick={() =>
+                          navigate(`/experiments?project=${selectedProjectId}&fromRec=${rec.id}`)
+                        }
                         className="flex items-center gap-1.5"
                       >
                         <FlaskConical size={13} /> Launch Experiment
@@ -520,7 +563,7 @@ export default function RecommendationsPage() {
 
                   {rec.status === 'experiment_created' && (
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       onClick={() => navigate(`/experiments?project=${selectedProjectId}`)}
                       className="flex items-center gap-1.5"
@@ -537,42 +580,42 @@ export default function RecommendationsPage() {
 
       {/* ── Rejection Modal ────────────────────────────────────── */}
       {rejectingRec && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <Card className="w-full max-w-md p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-fade-in">
+          <Card className="w-full max-w-md p-6 shadow-xl animate-scale-in">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-base font-bold text-[var(--color-text-primary)]">
+              <h3 className="text-sm font-bold text-slate-900">
                 Reject Recommendation
               </h3>
               <button
                 onClick={() => setRejectingRec(null)}
-                className="text-gray-400 hover:text-gray-600 font-bold"
+                className="text-slate-400 hover:text-slate-600 p-1"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
-            <p className="text-xs text-[var(--color-text-secondary)] mb-4">
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
               Please explain why this proposal is unsuitable. GEOlytics will retain this in Hindsight memory so future recommendations avoid similar patterns.
             </p>
 
             <form onSubmit={handleConfirmReject} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Reason for Rejection *
                 </label>
                 <textarea
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="e.g. Does not align with current brand tone, or already addressed in an upcoming release..."
+                  placeholder="e.g. Does not align with current brand tone, or already planned in next sprint..."
                   rows={3}
                   required
-                  className="w-full text-xs p-2.5 rounded-lg border border-[var(--color-border)] focus:outline-none focus:ring-1 focus:ring-red-500"
+                  className="w-full text-xs p-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-slate-900 placeholder:text-slate-400"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={() => setRejectingRec(null)}
                 >
@@ -594,20 +637,20 @@ export default function RecommendationsPage() {
 
       {/* ── Detail Modal ───────────────────────────────────────── */}
       {selectedRecForDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4 bg-[var(--color-surface-secondary)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-fade-in">
+          <Card className="w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden p-0 animate-scale-in">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 bg-slate-50/80">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   {selectedRecForDetail.type} • {selectedRecForDetail.priority} priority
                 </span>
-                <h3 className="text-base font-bold text-[var(--color-text-primary)]">
+                <h3 className="text-sm font-bold text-slate-900 mt-0.5">
                   {selectedRecForDetail.title}
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedRecForDetail(null)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-md"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
               >
                 <X size={18} />
               </button>
@@ -615,43 +658,43 @@ export default function RecommendationsPage() {
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
               <div>
-                <span className="text-[11px] font-bold text-gray-500 uppercase block mb-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
                   Action to Take:
                 </span>
-                <div className="p-3 bg-[var(--color-surface-secondary)] rounded-lg font-medium text-gray-800">
+                <div className="p-3 bg-slate-50 rounded-xl font-semibold text-slate-900 border border-slate-200/80">
                   {selectedRecForDetail.action}
                 </div>
               </div>
 
               <div>
-                <span className="text-[11px] font-bold text-gray-500 uppercase block mb-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
                   Reason & Underlying Cause:
                 </span>
-                <p className="text-gray-700 leading-relaxed">{selectedRecForDetail.reason}</p>
+                <p className="text-slate-700 leading-relaxed">{selectedRecForDetail.reason}</p>
               </div>
 
               <div>
-                <span className="text-[11px] font-bold text-gray-500 uppercase block mb-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
                   Hypothesis:
                 </span>
-                <p className="text-gray-700 leading-relaxed">{selectedRecForDetail.hypothesis}</p>
+                <p className="text-slate-700 leading-relaxed">{selectedRecForDetail.hypothesis}</p>
               </div>
 
               <div>
-                <span className="text-[11px] font-bold text-gray-500 uppercase block mb-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
                   Suggested Experiment Protocol:
                 </span>
-                <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-lg text-blue-900 leading-relaxed">
+                <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-xl text-blue-950 leading-relaxed font-medium">
                   {selectedRecForDetail.suggested_experiment}
                 </div>
               </div>
 
               {selectedRecForDetail.evidence && (
                 <div>
-                  <span className="text-[11px] font-bold text-gray-500 uppercase block mb-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
                     Verifiable Evidence Points:
                   </span>
-                  <ul className="list-disc list-inside space-y-1 text-gray-700">
+                  <ul className="list-disc list-inside space-y-1 text-slate-700">
                     {selectedRecForDetail.evidence.map((ev, idx) => (
                       <li key={idx}>{ev}</li>
                     ))}
@@ -659,33 +702,39 @@ export default function RecommendationsPage() {
                 </div>
               )}
 
-              {selectedRecForDetail.affected_pages && selectedRecForDetail.affected_pages.length > 0 && (
-                <div>
-                  <span className="text-[11px] font-bold text-gray-500 uppercase block mb-1">
-                    Affected Pages:
-                  </span>
-                  <div className="flex flex-wrap gap-1">
-                    {selectedRecForDetail.affected_pages.map((p, idx) => (
-                      <span key={idx} className="font-mono text-[11px] bg-gray-100 px-2 py-0.5 rounded text-gray-700">
-                        {p}
-                      </span>
-                    ))}
+              {selectedRecForDetail.affected_pages &&
+                selectedRecForDetail.affected_pages.length > 0 && (
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                      Affected Pages:
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedRecForDetail.affected_pages.map((p, idx) => (
+                        <span
+                          key={idx}
+                          className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded text-slate-700"
+                        >
+                          {p}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
 
-            <div className="border-t border-[var(--color-border)] px-5 py-3 bg-[var(--color-surface-secondary)] flex justify-between items-center text-[11px] text-gray-500">
-              <span>Status: <strong className="uppercase">{selectedRecForDetail.status}</strong></span>
+            <div className="border-t border-slate-100 px-5 py-3 bg-slate-50/80 flex justify-between items-center text-[11px] text-slate-500">
+              <span>
+                Status: <strong className="uppercase">{selectedRecForDetail.status}</strong>
+              </span>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => setSelectedRecForDetail(null)}
               >
                 Close
               </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
     </div>

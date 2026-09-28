@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
-  Settings,
   Play,
   RotateCw,
   Clock,
@@ -17,6 +16,7 @@ import {
   Lightbulb,
   FlaskConical,
   FileText,
+  Activity,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -61,7 +61,7 @@ const JOB_METADATA: Record<
     icon: Globe,
   },
   agent_analysis: {
-    title: 'LangGraph Intelligence Reasoning',
+    title: 'LangGraph Reasoning Agent',
     description: 'Executes the 9-node reasoning graph synthesizing latest SEO, GEO, and memory patterns into actionable opportunities.',
     defaultFrequency: 'Weekly',
     icon: Lightbulb,
@@ -102,26 +102,29 @@ export default function AutomationSettingsPage() {
         const res = await api.get<ProjectListResponse>('/api/v1/projects')
         const items = res.projects || []
         setProjects(items)
-        const qpId = searchParams.get('projectId')
+        const qpId = searchParams.get('projectId') || searchParams.get('project')
         if (qpId && items.some((p) => p.id === qpId)) {
           setSelectedProjectId(qpId)
         } else if (items.length > 0) {
           setSelectedProjectId(items[0].id)
         }
-      } catch (err: any) {
-        setStatusMessage({ type: 'error', text: err?.message || 'Failed to load projects' })
+      } catch (err: unknown) {
+        setStatusMessage({
+          type: 'error',
+          text: err instanceof Error ? err.message : 'Failed to load projects',
+        })
       } finally {
         setLoadingProjects(false)
       }
     }
     loadProjects()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 2. Load automation settings & recent runs
   useEffect(() => {
     if (!selectedProjectId) return
     loadAutomationData(selectedProjectId)
-  }, [selectedProjectId])
+  }, [selectedProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAutomationData = async (projectId: string) => {
     setLoadingSettings(true)
@@ -133,8 +136,11 @@ export default function AutomationSettingsPage() {
       ])
       setSettings(settingsData || [])
       setRuns(runsData || [])
-    } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err?.message || 'Failed to load automation settings' })
+    } catch (err: unknown) {
+      setStatusMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to load automation settings',
+      })
     } finally {
       setLoadingSettings(false)
     }
@@ -149,7 +155,7 @@ export default function AutomationSettingsPage() {
       setSettings((prev) =>
         prev.map((s) => (s.job_type === jobType ? { ...s, enabled: !currentEnabled } : s))
       )
-    } catch (err: any) {
+    } catch {
       setStatusMessage({ type: 'error', text: 'Failed to update job status.' })
     }
   }
@@ -163,7 +169,7 @@ export default function AutomationSettingsPage() {
       setSettings((prev) =>
         prev.map((s) => (s.job_type === jobType ? { ...s, frequency } : s))
       )
-    } catch (err: any) {
+    } catch {
       setStatusMessage({ type: 'error', text: 'Failed to update job frequency.' })
     }
   }
@@ -173,18 +179,21 @@ export default function AutomationSettingsPage() {
     setTriggeringJob(jobType)
     setStatusMessage(null)
     try {
-      const res = await api.post<any>(`/api/v1/projects/${selectedProjectId}/automation/run/${jobType}`, {
-        parameters: { force: true },
-      })
+      const res = await api.post<{ message?: string; status?: string }>(
+        `/api/v1/projects/${selectedProjectId}/automation/run/${jobType}`,
+        {
+          parameters: { force: true },
+        }
+      )
       setStatusMessage({
         type: 'success',
         text: res.message || `Job '${JOB_METADATA[jobType]?.title || jobType}' completed. Status: ${res.status}`,
       })
       await loadAutomationData(selectedProjectId)
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatusMessage({
         type: 'error',
-        text: err?.message || `Failed to run job ${jobType}.`,
+        text: err instanceof Error ? err.message : `Failed to run job ${jobType}.`,
       })
     } finally {
       setTriggeringJob(null)
@@ -196,60 +205,66 @@ export default function AutomationSettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto animate-fade-in pb-12">
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/90">
         <div>
-          <h1 className="text-xl font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-            <Settings className="text-[var(--color-primary-600)]" size={24} />
-            Automation & Production Intelligence
-          </h1>
-          <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-            Configure automated schedules, data sync frequencies, and trigger jobs manually with failure isolation.
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">
+              Automation & Autonomous Pipelines
+            </h1>
+            <Badge variant="seo">Production Engine</Badge>
+          </div>
+          <p className="text-xs text-slate-500">
+            Configure automated schedules, data sync frequencies, and trigger background jobs with failure isolation.
           </p>
         </div>
 
         {/* Project Selector */}
-        <select
-          value={selectedProjectId}
-          onChange={(e) => {
-            setSelectedProjectId(e.target.value)
-            setSearchParams({ projectId: e.target.value })
-          }}
-          className="text-xs font-medium bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-3 py-2 text-[var(--color-text-primary)] shadow-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary-500)]"
-        >
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs">
+          <span className="text-xs font-semibold text-slate-500">Project:</span>
+          <select
+            value={selectedProjectId}
+            onChange={(e) => {
+              setSelectedProjectId(e.target.value)
+              setSearchParams({ project: e.target.value })
+            }}
+            className="text-xs font-semibold bg-transparent text-slate-900 cursor-pointer focus:outline-none"
+          >
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {statusMessage && (
         <div
-          className={`p-3.5 rounded-lg text-xs flex items-center justify-between ${
+          className={`p-3.5 rounded-xl text-xs flex items-center justify-between animate-scale-in ${
             statusMessage.type === 'success'
-              ? 'bg-[var(--color-success-light)] text-[var(--color-success)] border border-[var(--color-success)]/20'
-              : 'bg-[var(--color-danger-light)] text-[var(--color-danger)] border border-[var(--color-danger)]/20'
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border border-rose-200'
           }`}
         >
           <span>{statusMessage.text}</span>
           <button onClick={() => setStatusMessage(null)} className="font-bold hover:opacity-75">
-            ×
+            ✕
           </button>
         </div>
       )}
 
       {/* ── Scheduled Jobs Grid ─────────────────────────────── */}
       <div className="space-y-4">
-        <h2 className="text-xs font-bold text-[var(--color-text-tertiary)] uppercase tracking-wider">
-          Scheduled Autonomous Jobs ({settings.length})
+        <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+          <Clock size={13} className="text-blue-600" />
+          Autonomous Background Jobs ({settings.length})
         </h2>
 
         {loadingSettings ? (
-          <Card className="p-8 text-center text-xs text-[var(--color-text-secondary)]">
-            <RotateCw size={18} className="animate-spin mx-auto mb-2 text-[var(--color-primary-600)]" />
+          <Card className="p-8 text-center text-xs text-slate-400">
+            <RotateCw size={18} className="animate-spin mx-auto mb-2 text-blue-600" />
             Loading job settings...
           </Card>
         ) : (
@@ -266,22 +281,27 @@ export default function AutomationSettingsPage() {
               return (
                 <Card
                   key={job.job_type}
+                  hoverLift
                   className={`p-5 transition-all border ${
                     job.enabled
-                      ? 'bg-[var(--color-surface)] border-[var(--color-border)] shadow-xs'
-                      : 'bg-[var(--color-surface-secondary)] border-[var(--color-border)] opacity-75'
+                      ? 'bg-white border-slate-200/90 shadow-xs'
+                      : 'bg-slate-50/60 border-slate-200/60 opacity-75'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-2 rounded-lg bg-[var(--color-surface-tertiary)] shrink-0">
-                        <Icon size={18} className="text-[var(--color-primary-600)]" />
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 shrink-0 border border-blue-100">
+                        <Icon size={18} />
                       </div>
                       <div>
-                        <h3 className="text-xs font-bold text-[var(--color-text-primary)]">
+                        <h3 className="text-xs font-bold text-slate-900">
                           {meta.title}
                         </h3>
-                        <Badge variant={job.enabled ? 'success' : 'neutral'} className="text-[9px] mt-0.5">
+                        <Badge
+                          variant={job.enabled ? 'success' : 'neutral'}
+                          className="text-[9px] mt-0.5"
+                          dot
+                        >
                           {job.enabled ? 'Enabled' : 'Disabled'}
                         </Badge>
                       </div>
@@ -290,35 +310,35 @@ export default function AutomationSettingsPage() {
                     {/* Enable/Disable Toggle */}
                     <button
                       onClick={() => handleToggleJob(job.job_type, job.enabled)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        job.enabled ? 'bg-[var(--color-primary-600)]' : 'bg-gray-300'
+                      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        job.enabled ? 'bg-blue-600' : 'bg-slate-300'
                       }`}
                       role="switch"
                       aria-checked={job.enabled}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                          job.enabled ? 'translate-x-4' : 'translate-x-0'
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                          job.enabled ? 'translate-x-5' : 'translate-x-0'
                         }`}
                       />
                     </button>
                   </div>
 
-                  <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed mb-4 min-h-[32px]">
+                  <p className="text-xs text-slate-600 leading-relaxed mb-4 min-h-[34px]">
                     {meta.description}
                   </p>
 
                   {/* Settings row */}
-                  <div className="flex items-center justify-between pt-3 border-t border-[var(--color-border)] text-xs">
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-[var(--color-text-tertiary)]">Frequency:</span>
+                      <span className="text-[11px] text-slate-400 font-medium">Cadence:</span>
                       <select
                         value={job.frequency}
                         onChange={(e) =>
                           handleChangeFrequency(job.job_type, e.target.value as AutomationFrequency)
                         }
                         disabled={!job.enabled}
-                        className="text-xs bg-[var(--color-surface-secondary)] border border-[var(--color-border)] rounded px-2 py-1 text-[var(--color-text-primary)] font-medium"
+                        className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-800 font-medium focus:outline-none"
                       >
                         <option value="hourly">Hourly</option>
                         <option value="daily">Daily</option>
@@ -329,20 +349,20 @@ export default function AutomationSettingsPage() {
 
                     {/* Run Now Button */}
                     <Button
-                      size="sm"
-                      variant="outline"
+                      size="xs"
+                      variant="secondary"
                       onClick={() => handleRunNow(job.job_type)}
                       disabled={isRunning}
                       className="flex items-center gap-1.5"
                     >
                       {isRunning ? (
                         <>
-                          <RotateCw size={12} className="animate-spin text-[var(--color-primary-600)]" />
+                          <RotateCw size={11} className="animate-spin text-blue-600" />
                           Running...
                         </>
                       ) : (
                         <>
-                          <Play size={12} />
+                          <Play size={11} />
                           Run Now
                         </>
                       )}
@@ -350,7 +370,7 @@ export default function AutomationSettingsPage() {
                   </div>
 
                   {/* Timestamps */}
-                  <div className="flex items-center justify-between text-[10px] text-[var(--color-text-tertiary)] mt-3 pt-2 border-t border-[var(--color-border)]">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2.5 border-t border-slate-100 font-mono">
                     <span className="flex items-center gap-1">
                       <Clock size={11} />
                       Last: {job.last_run_at ? new Date(job.last_run_at).toLocaleString() : 'Never'}
@@ -369,43 +389,44 @@ export default function AutomationSettingsPage() {
 
       {/* ── Execution History Run Log ────────────────────────── */}
       <div className="space-y-3 pt-4">
-        <h2 className="text-xs font-bold text-[var(--color-text-tertiary)] uppercase tracking-wider">
-          Recent Automation Execution Runs ({runs.length})
+        <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+          <Activity size={13} className="text-blue-600" />
+          Execution Run History ({runs.length})
         </h2>
 
         {runs.length === 0 ? (
-          <Card className="p-6 text-center text-xs text-[var(--color-text-tertiary)]">
+          <Card className="p-8 text-center text-xs text-slate-400 border-dashed border-slate-300">
             No execution logs recorded yet. Automated or manual runs will be listed here.
           </Card>
         ) : (
-          <Card className="overflow-hidden border border-[var(--color-border)]">
+          <Card padding="none" className="overflow-hidden border border-slate-200">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-[var(--color-surface-secondary)] text-[var(--color-text-tertiary)] text-[10px] uppercase tracking-wider border-b border-[var(--color-border)]">
-                    <th className="py-2.5 px-4 font-semibold">Job Type</th>
-                    <th className="py-2.5 px-4 font-semibold">Trigger</th>
-                    <th className="py-2.5 px-4 font-semibold">Status</th>
-                    <th className="py-2.5 px-4 font-semibold">Duration</th>
-                    <th className="py-2.5 px-4 font-semibold">Executed At</th>
-                    <th className="py-2.5 px-4 font-semibold">Summary / Outcome</th>
+                  <tr className="bg-slate-50 text-slate-500 text-[11px] font-semibold border-b border-slate-200">
+                    <th className="py-2.5 px-4">Job Type</th>
+                    <th className="py-2.5 px-4">Trigger</th>
+                    <th className="py-2.5 px-4">Status</th>
+                    <th className="py-2.5 px-4">Duration</th>
+                    <th className="py-2.5 px-4">Executed At</th>
+                    <th className="py-2.5 px-4">Summary / Outcome</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--color-border)]">
+                <tbody className="divide-y divide-slate-100 bg-white">
                   {runs.map((r) => (
-                    <tr key={r.id} className="hover:bg-[var(--color-surface-tertiary)]">
-                      <td className="py-3 px-4 font-medium text-[var(--color-text-primary)]">
+                    <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3 px-4 font-semibold text-slate-900">
                         {JOB_METADATA[r.job_type]?.title || r.job_type}
                       </td>
-                      <td className="py-3 px-4 text-[var(--color-text-secondary)] capitalize">
+                      <td className="py-3 px-4 text-slate-600 capitalize">
                         {r.is_manual ? 'Manual' : 'Scheduled'}
                       </td>
                       <td className="py-3 px-4">
                         <span className="flex items-center gap-1.5">
-                          {r.status === 'completed' && <CheckCircle2 size={13} className="text-[var(--color-success)]" />}
-                          {r.status === 'partial_success' && <AlertTriangle size={13} className="text-[var(--color-warning)]" />}
-                          {r.status === 'failed' && <XCircle size={13} className="text-[var(--color-danger)]" />}
-                          {r.status === 'skipped' && <Clock size={13} className="text-[var(--color-text-tertiary)]" />}
+                          {r.status === 'completed' && <CheckCircle2 size={13} className="text-emerald-600" />}
+                          {r.status === 'partial_success' && <AlertTriangle size={13} className="text-amber-600" />}
+                          {r.status === 'failed' && <XCircle size={13} className="text-rose-600" />}
+                          {r.status === 'skipped' && <Clock size={13} className="text-slate-400" />}
                           <Badge
                             variant={
                               r.status === 'completed'
@@ -416,21 +437,21 @@ export default function AutomationSettingsPage() {
                                 ? 'danger'
                                 : 'neutral'
                             }
-                            className="text-[9px] capitalize"
+                            className="text-[10px] capitalize"
                           >
-                            {r.status.replace('_', ' ')}
+                            {r.status.replace(/_/g, ' ')}
                           </Badge>
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-[var(--color-text-secondary)]">
+                      <td className="py-3 px-4 text-slate-600 font-mono">
                         {r.duration_seconds !== null && r.duration_seconds !== undefined
                           ? `${r.duration_seconds.toFixed(1)}s`
                           : '—'}
                       </td>
-                      <td className="py-3 px-4 text-[var(--color-text-tertiary)]">
+                      <td className="py-3 px-4 text-slate-400 font-mono text-[11px]">
                         {new Date(r.started_at).toLocaleString()}
                       </td>
-                      <td className="py-3 px-4 text-[var(--color-text-secondary)] max-w-xs truncate">
+                      <td className="py-3 px-4 text-slate-600 max-w-xs truncate">
                         {r.error_message || (r.result_summary?.message as string) || 'Executed successfully.'}
                       </td>
                     </tr>
