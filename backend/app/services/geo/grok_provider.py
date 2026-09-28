@@ -17,7 +17,7 @@ class GrokProvider(AIProvider):
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         settings = get_settings()
-        self.api_key = api_key or settings.xai_api_key
+        self.api_key = api_key if api_key is not None else settings.xai_api_key
         self.model = model or self.default_model
 
     def is_configured(self) -> bool:

@@ -13,6 +13,7 @@ import {
   Brain,
   FileText,
   Settings,
+  Bell,
   LogOut,
   Menu,
   X,
@@ -27,11 +28,12 @@ const navItems = [
   { to: '/keywords', label: 'Keywords', icon: Key, enabled: false },
   { to: '/competitors', label: 'Competitors', icon: Globe, enabled: false },
   { to: '/technical', label: 'Technical Audit', icon: Wrench, enabled: true },
-  { to: '/recommendations', label: 'Recommendations', icon: Lightbulb, enabled: false },
-  { to: '/experiments', label: 'Experiments', icon: FlaskConical, enabled: false },
-  { to: '/memory', label: 'Memory', icon: Brain, enabled: false },
-  { to: '/reports', label: 'Reports', icon: FileText, enabled: false },
-  { to: '/settings', label: 'Settings', icon: Settings, enabled: false },
+  { to: '/recommendations', label: 'Recommendations', icon: Lightbulb, enabled: true },
+  { to: '/experiments', label: 'Experiments', icon: FlaskConical, enabled: true },
+  { to: '/memory', label: 'Memory', icon: Brain, enabled: true },
+  { to: '/reports', label: 'Reports', icon: FileText, enabled: true },
+  { to: '/notifications', label: 'Notifications', icon: Bell, enabled: true },
+  { to: '/settings/automation', label: 'Automation', icon: Settings, enabled: true },
 ]
 
 export default function AppLayout() {
@@ -68,8 +70,24 @@ export default function AppLayout() {
             </div>
           </div>
 
-          {/* User menu */}
-          <div className="relative">
+          {/* Right Header items */}
+          <div className="flex items-center gap-3">
+            <NavLink
+              to="/notifications"
+              className={({ isActive }) =>
+                `p-2 rounded-lg transition-colors ${
+                  isActive
+                    ? 'bg-[var(--color-primary-50)] text-[var(--color-primary-600)]'
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)]'
+                }`
+              }
+              title="Notifications & Alerts"
+            >
+              <Bell size={17} />
+            </NavLink>
+
+            {/* User menu */}
+            <div className="relative">
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
               className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
@@ -101,6 +119,7 @@ export default function AppLayout() {
                 </div>
               </>
             )}
+            </div>
           </div>
         </div>
       </header>

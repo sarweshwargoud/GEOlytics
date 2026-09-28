@@ -6,7 +6,19 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.core.errors import AppError, app_error_handler, unhandled_error_handler
-from app.api.routes import crawl, geo, gsc, health, projects
+from app.api.routes import (
+    agent,
+    automation,
+    crawl,
+    experiments,
+    geo,
+    gsc,
+    health,
+    notifications,
+    projects,
+    recommendations,
+    reports,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,6 +59,15 @@ def create_app() -> FastAPI:
     app.include_router(geo.router, prefix="/api/v1")
     app.include_router(gsc.router, prefix="/api/v1")
     app.include_router(gsc.oauth_callback_router, prefix="/api/v1")
+    app.include_router(agent.router, prefix="/api/v1")
+    app.include_router(recommendations.project_recs_router, prefix="/api/v1")
+    app.include_router(recommendations.recs_action_router, prefix="/api/v1")
+    app.include_router(experiments.project_experiments_router, prefix="/api/v1")
+    app.include_router(experiments.experiment_action_router, prefix="/api/v1")
+    app.include_router(automation.project_automation_router, prefix="/api/v1")
+    app.include_router(automation.system_automation_router, prefix="/api/v1")
+    app.include_router(reports.reports_router, prefix="/api/v1")
+    app.include_router(notifications.notifications_router, prefix="/api/v1")
 
     logger.info("Application started: %s v%s", settings.app_name, settings.app_version)
     return app

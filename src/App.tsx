@@ -7,6 +7,12 @@ import DashboardPage from '@/pages/DashboardPage'
 import AuditPage from '@/pages/AuditPage'
 import SearchConsolePage from '@/pages/SearchConsolePage'
 import GeoVisibilityPage from '@/pages/GeoVisibilityPage'
+import RecommendationsPage from '@/pages/RecommendationsPage'
+import ExperimentsPage from '@/pages/ExperimentsPage'
+import MemoryPage from '@/pages/MemoryPage'
+import ReportsPage from '@/pages/ReportsPage'
+import NotificationsPage from '@/pages/NotificationsPage'
+import AutomationSettingsPage from '@/pages/AutomationSettingsPage'
 
 export default function App() {
   return (
@@ -28,6 +34,13 @@ export default function App() {
             <Route path="/seo" element={<SearchConsolePage />} />
             <Route path="/geo" element={<GeoVisibilityPage />} />
             <Route path="/technical" element={<AuditPage />} />
+            <Route path="/recommendations" element={<RecommendationsPage />} />
+            <Route path="/experiments" element={<ExperimentsPage />} />
+            <Route path="/memory" element={<MemoryPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/settings" element={<Navigate to="/settings/automation" replace />} />
+            <Route path="/settings/automation" element={<AutomationSettingsPage />} />
 
             {/* Redirect root to dashboard */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

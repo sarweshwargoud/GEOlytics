@@ -46,6 +46,8 @@ class HealthOut(BaseModel):
     status: str
     service: str
     version: str
+    database: Optional[str] = None
+    services: Optional[dict] = None
 
 
 # ─── Scoring type stubs (architecture only — not scored in Phase 1) ─

@@ -16,7 +16,7 @@ class TavilyResearchService:
 
     def __init__(self, api_key: Optional[str] = None):
         settings = get_settings()
-        self.api_key = api_key or settings.tavily_api_key
+        self.api_key = api_key if api_key is not None else settings.tavily_api_key
 
     def is_configured(self) -> bool:
         return bool(self.api_key and len(self.api_key.strip()) > 5)

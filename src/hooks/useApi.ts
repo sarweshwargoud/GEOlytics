@@ -24,10 +24,15 @@ export function useApi() {
     [token]
   )
 
+  const patch = useCallback(
+    <T>(path: string, data: unknown) => api.patch<T>(path, data, token),
+    [token]
+  )
+
   const del = useCallback(
     <T>(path: string) => api.delete<T>(path, token),
     [token]
   )
 
-  return { get, post, put, del }
+  return { get, post, put, patch, del, delete: del }
 }

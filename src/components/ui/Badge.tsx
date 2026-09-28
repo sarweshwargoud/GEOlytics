@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-type Variant = 'info' | 'success' | 'warning' | 'danger' | 'seo' | 'geo'
+type Variant = 'info' | 'success' | 'warning' | 'danger' | 'seo' | 'geo' | 'neutral'
 
 interface BadgeProps {
   variant?: Variant
@@ -15,6 +15,7 @@ const styles: Record<Variant, string> = {
   danger: 'bg-[var(--color-danger-light)] text-[var(--color-danger)]',
   seo: 'bg-[var(--color-seo-light)] text-[var(--color-seo)]',
   geo: 'bg-[var(--color-geo-light)] text-[var(--color-geo)]',
+  neutral: 'bg-gray-100 text-gray-700',
 }
 
 export default function Badge({ variant = 'info', children, className = '' }: BadgeProps) {

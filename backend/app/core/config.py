@@ -32,7 +32,16 @@ class Settings(BaseSettings):
     gsc_redirect_uri: str = "http://localhost:8000/api/v1/gsc/callback"
 
     # ── Hindsight ──────────────────────────────────────────────
-    hindsight_api_key: str = ""  # PRIVATE — Phase 4+
+    hindsight_api_key: str = ""   # PRIVATE — Phase 4
+    hindsight_base_url: str = ""  # Optional custom/self-hosted Hindsight endpoint
+
+    # ── Automation & Notifications (Phase 6) ───────────────────
+    automation_secret_key: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    notification_email_from: str = "notifications@geolytics.ai"
 
     model_config = {
         "env_file": [".env", "../.env"],

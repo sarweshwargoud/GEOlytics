@@ -337,3 +337,306 @@ export interface CompetitorResearchResult {
   competitor_pages_found: number
   summary: string
 }
+
+// ─── Phase 4: LangGraph & Hindsight Recommendation Models ─────
+
+export type RecommendationPriority = 'critical' | 'high' | 'medium' | 'low'
+export type RecommendationType = 'content' | 'technical' | 'schema' | 'linking' | 'geo_visibility' | 'metadata'
+export type RecommendationStatus = 'pending' | 'approved' | 'rejected' | 'experiment_created' | 'implemented' | 'measuring' | 'completed' | 'cancelled'
+
+export interface Recommendation {
+  id: string
+  project_id: string
+  title: string
+  type: RecommendationType
+  priority: RecommendationPriority
+  action: string
+  reason: string
+  hypothesis: string
+  confidence: number
+  status: RecommendationStatus
+  evidence: string[]
+  affected_pages: string[]
+  affected_queries: string[]
+  geo_observations: Array<Record<string, any>>
+  competitor_observations: Array<Record<string, any>>
+  historical_memory: string[]
+  suggested_experiment: string
+  measurement_criteria: string[]
+  requires_approval: boolean
+  rejection_reason?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type MemoryType = 'strategy' | 'outcome' | 'preference' | 'competitor_observation' | 'lesson_learned'
+export type MemoryCategory = 'seo' | 'geo' | 'technical' | 'content' | 'approval'
+
+export interface AgentMemory {
+  id: string
+  project_id: string
+  memory_type: MemoryType
+  category: MemoryCategory
+  title: string
+  content: string
+  source: string
+  confidence: number
+  tags: string[]
+  metadata: Record<string, any>
+  created_at: string
+}
+
+export interface AgentRunResponse {
+  project_id: string
+  recommendations_generated: number
+  recommendations: Recommendation[]
+  memories_recalled: number
+  execution_time_seconds: number
+  summary: string
+}
+
+// ─── Phase 5: Closed-Loop Experiment Models ───────────────────
+
+export type ExperimentStatus =
+  | 'draft'
+  | 'approved'
+  | 'baseline_captured'
+  | 'implementation_pending'
+  | 'running'
+  | 'measuring'
+  | 'completed'
+  | 'cancelled'
+
+export type ExperimentOutcome =
+  | 'pending'
+  | 'positive'
+  | 'neutral'
+  | 'negative'
+  | 'inconclusive'
+  | 'insufficient_data'
+
+export interface SuccessCriterion {
+  metric: string
+  target_type: string
+  target_value: number
+  description: string
+}
+
+export interface MetricDeltaItem {
+  metric: string
+  baseline: number
+  after: number
+  absolute_delta: number
+  percent_delta?: number
+  pp_delta?: number
+  position_improvement?: number
+  status: 'improved' | 'neutral' | 'regressed' | 'no_data'
+  formatted_display: string
+}
+
+export interface ExperimentResult {
+  deltas?: Record<string, any>
+  metric_items?: MetricDeltaItem[]
+  criteria_evaluations?: Array<{
+    criterion: string
+    metric: string
+    passed: boolean
+    detail: string
+  }>
+  outcome: ExperimentOutcome
+  outcome_summary: string
+  evidence: string[]
+  limitations: string[]
+  hindsight_memory_retained?: string
+}
+
+export interface Experiment {
+  id: string
+  project_id: string
+  recommendation_id?: string | null
+  name: string
+  hypothesis: string
+  status: ExperimentStatus
+  start_date?: string | null
+  implementation_date?: string | null
+  measurement_start?: string | null
+  measurement_end?: string | null
+  baseline_period: Record<string, any>
+  target_period: Record<string, any>
+  success_criteria: SuccessCriterion[]
+  metrics: Array<Record<string, any>>
+  result: ExperimentResult
+  outcome: ExperimentOutcome
+  notes?: string | null
+  created_at: string
+  updated_at: string
+  completed_at?: string | null
+}
+
+export interface ExperimentCreate {
+  recommendation_id?: string
+  name: string
+  hypothesis: string
+  measurement_window_days?: number
+  affected_pages?: string[]
+  affected_queries?: string[]
+  success_criteria?: SuccessCriterion[]
+  notes?: string
+}
+
+// ─── Phase 6: Automation, Reports, Notifications & Health ──────
+
+export type AutomationJobType =
+  | 'seo_sync'
+  | 'geo_checks'
+  | 'seo_audit'
+  | 'competitor_research'
+  | 'agent_analysis'
+  | 'experiment_measurement'
+  | 'report_generation'
+
+export type AutomationFrequency = 'hourly' | 'daily' | 'weekly' | 'monthly'
+
+export type AutomationRunStatus =
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'partial_success'
+  | 'failed'
+  | 'skipped'
+
+export interface AutomationJobSetting {
+  id?: string
+  project_id: string
+  job_type: AutomationJobType
+  enabled: boolean
+  frequency: AutomationFrequency
+  last_run_at?: string | null
+  next_run_at?: string | null
+  configuration: Record<string, any>
+  created_at?: string
+  updated_at?: string
+}
+
+export interface AutomationRunLog {
+  id: string
+  project_id: string
+  job_type: AutomationJobType
+  status: AutomationRunStatus
+  is_manual: boolean
+  started_at: string
+  completed_at?: string | null
+  duration_seconds?: number | null
+  result_summary?: Record<string, any>
+  error_message?: string | null
+  created_at: string
+}
+
+export interface Report {
+  id: string
+  project_id: string
+  report_type: string
+  period_start: string
+  period_end: string
+  status: string
+  summary: string
+  data: {
+    seo_performance?: {
+      summary?: string
+      total_clicks?: number
+      total_impressions?: number
+      average_ctr?: number
+      average_position?: number
+      recent_data_points?: number
+      top_queries?: Array<{ query: string; clicks: number; impressions: number; ctr: number; position: number }>
+      top_pages?: Array<{ page: string; clicks: number; impressions: number; ctr: number; position: number }>
+    }
+    geo_visibility?: {
+      summary?: string
+      tested_queries_count?: number
+      total_citations_observed?: number
+      total_brand_mentions?: number
+      citations?: Array<{ query: string; provider: string; cited_url?: string; brand_mentioned?: boolean }>
+    }
+    competitor_insights?: {
+      summary?: string
+      observations?: Array<Record<string, any>>
+    }
+    recommendations?: {
+      total_count?: number
+      pending_count?: number
+      high_priority_count?: number
+      items?: any[]
+    }
+    experiments?: {
+      active_count?: number
+      completed_count?: number
+      items?: any[]
+    }
+    hindsight_learnings?: Array<{ title: string; content: string; confidence?: number; category?: string }>
+    limitations?: string[]
+    data_freshness?: {
+      generated_at?: string
+      period_start?: string
+      period_end?: string
+      gsc_latency?: string
+    }
+  }
+  created_at: string
+}
+
+export type NotificationCategory =
+  | 'recommendation'
+  | 'experiment'
+  | 'geo_change'
+  | 'report'
+  | 'system'
+
+export interface NotificationItem {
+  id: string
+  project_id?: string | null
+  user_id: string
+  category: NotificationCategory
+  title: string
+  message: string
+  is_read: boolean
+  related_entity_id?: string | null
+  related_entity_type?: string | null
+  metadata?: Record<string, any>
+  created_at: string
+}
+
+export interface NotificationPreferences {
+  id?: string
+  project_id: string
+  user_id: string
+  high_priority_recs: boolean
+  experiment_results: boolean
+  geo_visibility_changes: boolean
+  weekly_reports: boolean
+  automation_failures: boolean
+  email_notifications_enabled: boolean
+  email_recipient?: string | null
+}
+
+export interface FreshnessIndicator {
+  last_updated?: string | null
+  freshness_label: string
+  is_fresh: boolean
+  details?: string | null
+}
+
+export interface ProjectHealthReport {
+  project_id: string
+  project_name: string
+  seo: FreshnessIndicator
+  geo: FreshnessIndicator
+  gsc: FreshnessIndicator
+  experiments: FreshnessIndicator
+  automation: FreshnessIndicator
+  summary_status: 'healthy' | 'attention_needed' | 'degraded'
+  active_experiments_count: number
+  pending_recommendations_count: number
+  unread_notifications_count: number
+}
+
