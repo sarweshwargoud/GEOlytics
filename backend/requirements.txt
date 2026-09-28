@@ -1,0 +1,30 @@
+# ── Core ──────────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.11.1
+pydantic-settings==2.9.1
+python-dotenv==1.1.0
+
+# ── Database ──────────────────────────────────────────
+supabase==2.15.1
+
+# ── HTTP client ───────────────────────────────────────
+httpx==0.28.1
+
+# ── Testing ───────────────────────────────────────────
+pytest==8.3.5
+pytest-asyncio==0.24.0
+
+# ── Phase 2 Crawler & Analysis ───────────────────────
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+lxml_html_clean>=0.4.0
+trafilatura>=2.0.0
+playwright>=1.40.0
+
+# ── Phase 3+ (not installed yet — listed for reference)
+# google-genai==1.14.0
+# langgraph==0.4.1
+# langchain-google-genai==2.1.4
+# langchain-core==0.3.56
+# tavily-python==0.5.0
