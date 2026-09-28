@@ -108,9 +108,12 @@ def normalize_url(url: str) -> str:
 
 
 def get_base_domain(url: str) -> str:
-    """Extracts the registered domain or host from a URL."""
+    """Extracts the registered domain or host from a URL or domain string."""
     try:
-        parsed = urlparse(url.strip())
+        url_str = url.strip()
+        if "://" not in url_str:
+            url_str = "http://" + url_str
+        parsed = urlparse(url_str)
         host = (parsed.hostname or "").lower()
         if host.startswith("www."):
             host = host[4:]

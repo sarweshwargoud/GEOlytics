@@ -19,15 +19,17 @@ class Settings(BaseSettings):
     supabase_anon_key: str = ""
     supabase_service_role_key: str = ""  # PRIVATE — never expose
 
-    # ── Gemini API ─────────────────────────────────────────────
-    gemini_api_key: str = ""  # PRIVATE — Phase 2+
-
-    # ── Tavily ─────────────────────────────────────────────────
-    tavily_api_key: str = ""  # PRIVATE — Phase 2+
+    # ── AI Search Providers (GEO) ──────────────────────────────
+    openai_api_key: str = ""     # PRIVATE — Phase 3
+    gemini_api_key: str = ""     # PRIVATE — Phase 3
+    anthropic_api_key: str = ""  # PRIVATE — Phase 3
+    xai_api_key: str = ""        # PRIVATE — Phase 3
+    tavily_api_key: str = ""     # PRIVATE — Phase 3
 
     # ── Google Search Console ──────────────────────────────────
-    gsc_client_id: str = ""   # PRIVATE — Phase 2+
-    gsc_client_secret: str = ""  # PRIVATE — Phase 2+
+    gsc_client_id: str = ""      # PRIVATE — Phase 3
+    gsc_client_secret: str = ""  # PRIVATE — Phase 3
+    gsc_redirect_uri: str = "http://localhost:8000/api/v1/gsc/callback"
 
     # ── Hindsight ──────────────────────────────────────────────
     hindsight_api_key: str = ""  # PRIVATE — Phase 4+

@@ -5,6 +5,8 @@ import AppLayout from '@/components/layout/AppLayout'
 import LoginPage from '@/pages/LoginPage'
 import DashboardPage from '@/pages/DashboardPage'
 import AuditPage from '@/pages/AuditPage'
+import SearchConsolePage from '@/pages/SearchConsolePage'
+import GeoVisibilityPage from '@/pages/GeoVisibilityPage'
 
 export default function App() {
   return (
@@ -23,6 +25,8 @@ export default function App() {
             }
           >
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/seo" element={<SearchConsolePage />} />
+            <Route path="/geo" element={<GeoVisibilityPage />} />
             <Route path="/technical" element={<AuditPage />} />
 
             {/* Redirect root to dashboard */}

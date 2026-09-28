@@ -22,8 +22,8 @@ import Badge from '@/components/ui/Badge'
 
 const navItems = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, enabled: true },
-  { to: '/seo', label: 'SEO', icon: Search, enabled: false },
-  { to: '/geo', label: 'GEO', icon: Bot, enabled: false },
+  { to: '/seo', label: 'Search Console', icon: Search, enabled: true },
+  { to: '/geo', label: 'AI Visibility (GEO)', icon: Bot, enabled: true },
   { to: '/keywords', label: 'Keywords', icon: Key, enabled: false },
   { to: '/competitors', label: 'Competitors', icon: Globe, enabled: false },
   { to: '/technical', label: 'Technical Audit', icon: Wrench, enabled: true },

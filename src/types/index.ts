@@ -184,3 +184,156 @@ export interface AuditOverview {
   }
   site_signals?: SiteSignals
 }
+
+// ─── Phase 3: Google Search Console Models ────────────────────
+
+export interface GSCPerformanceSummary {
+  total_clicks: number
+  total_impressions: number
+  average_ctr: number
+  average_position: number
+}
+
+export interface GSCTimeseriesPoint {
+  date: string
+  clicks: number
+  impressions: number
+  ctr: number
+  position: number
+}
+
+export interface GSCQueryRow {
+  query: string
+  clicks: number
+  impressions: number
+  ctr: number
+  position: number
+}
+
+export interface GSCPageRow {
+  page: string
+  clicks: number
+  impressions: number
+  ctr: number
+  position: number
+}
+
+export interface SearchPerformanceReport {
+  site_url: string
+  days: number
+  summary: GSCPerformanceSummary
+  timeseries: GSCTimeseriesPoint[]
+  top_queries: GSCQueryRow[]
+  top_pages: GSCPageRow[]
+}
+
+export interface GSCSite {
+  siteUrl: string
+  permissionLevel: string
+}
+
+export interface GSCConnection {
+  id: string
+  project_id: string
+  site_url: string
+  permission_level?: string
+  status: 'active' | 'revoked' | 'expired'
+  last_synced_at?: string | null
+  created_at: string
+}
+
+// ─── Phase 3: GEO (AI Search) Intelligence Models ─────────────
+
+export type ProviderStatusType = 'connected' | 'not_configured' | 'unavailable' | 'error'
+
+export interface ProviderCapability {
+  provider: 'openai' | 'gemini' | 'claude' | 'grok' | 'tavily' | string
+  configured: boolean
+  web_search_supported: boolean
+  model: string
+  status: ProviderStatusType
+  message?: string
+}
+
+export interface ProviderStatusResponse {
+  providers: ProviderCapability[]
+}
+
+export interface SourceReference {
+  url: string
+  domain: string
+  title?: string | null
+  order: number
+  is_own_domain: boolean
+  is_competitor: boolean
+}
+
+export interface NormalizedAIResponse {
+  provider: string
+  model: string
+  query: string
+  timestamp: string
+  status: 'completed' | 'failed' | 'unavailable' | 'running' | 'pending'
+  brand_mentioned: boolean
+  website_cited: boolean
+  cited_urls: string[]
+  cited_domains: string[]
+  competitor_domains: string[]
+  sources: SourceReference[]
+  answer?: string | null
+  error?: string | null
+  raw_response?: Record<string, any>
+}
+
+export interface QueryVisibilitySummary {
+  query_id: string
+  query: string
+  category: string
+  target_entity?: string | null
+  checked_at: string
+  providers_configured: number
+  providers_tested: number
+  providers_cited: number
+  providers_mentioned: number
+  citation_coverage_pct: number
+  responses: NormalizedAIResponse[]
+  competitors_cited: string[]
+}
+
+export interface TrackedQuery {
+  id: string
+  project_id: string
+  query: string
+  category: string
+  target_entity?: string | null
+  enabled: boolean
+  created_at: string
+  updated_at: string
+  latest_visibility?: {
+    providers_cited: number
+    providers_tested: number
+    providers_mentioned: number
+    citation_coverage_pct: number
+    checked_at: string
+    responses?: NormalizedAIResponse[]
+  } | null
+}
+
+export interface TrackedQueryCreate {
+  query: string
+  category?: string
+  target_entity?: string
+}
+
+export interface CompetitorResearchResult {
+  query: string
+  direct_results: Array<{
+    title: string
+    url: string
+    content: string
+    score: number
+  }>
+  identified_domains: string[]
+  competitor_pages_found: number
+  summary: string
+}
