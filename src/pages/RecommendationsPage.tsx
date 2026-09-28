@@ -291,20 +291,58 @@ export default function RecommendationsPage() {
       )}
 
       {/* ── Filters Bar ────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2.5 text-xs">
-        <span className="text-slate-400 font-medium">Filter by:</span>
-
-        {/* Status */}
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 font-medium shadow-xs focus:outline-none"
-        >
-          <option value="all">All Statuses</option>
-          <option value="pending">Pending Approval</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-        </select>
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Status Tabs */}
+          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/80">
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1.5 rounded-md font-semibold text-xs transition-all ${
+                statusFilter === 'all'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setStatusFilter('pending')}
+              className={`px-3 py-1.5 rounded-md font-semibold text-xs transition-all flex items-center gap-1.5 ${
+                statusFilter === 'pending'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <span>Pending</span>
+              <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded-full text-[10px] font-bold">
+                {recommendations.filter((r) => r.status === 'pending').length}
+              </span>
+            </button>
+            <button
+              onClick={() => setStatusFilter('approved')}
+              className={`px-3 py-1.5 rounded-md font-semibold text-xs transition-all flex items-center gap-1.5 ${
+                statusFilter === 'approved'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <span>Approved</span>
+              <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-bold">
+                {recommendations.filter((r) => r.status === 'approved').length}
+              </span>
+            </button>
+            <button
+              onClick={() => setStatusFilter('rejected')}
+              className={`px-3 py-1.5 rounded-md font-semibold text-xs transition-all ${
+                statusFilter === 'rejected'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Rejected
+            </button>
+          </div>
+        </div>
 
         {/* Priority */}
         <select

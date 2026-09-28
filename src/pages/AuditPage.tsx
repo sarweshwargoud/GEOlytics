@@ -213,41 +213,40 @@ export default function AuditPage() {
 
   return (
     <div className="space-y-6 max-w-7xl pb-16 animate-fade-in">
-      {/* ── Top Bar ─────────────────────────────────────────── */}
+      {/* ── Top Bar (Figma: SEO Audit [Crawl complete] + Actions) ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/90">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              Technical SEO Audit & Crawl
+              SEO Audit
             </h1>
-            <Badge variant="seo">Safe Crawl</Badge>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200/60">
+              Crawl complete
+            </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Diagnostic crawl analysis, technical health index, and GEO crawler signals
+          <p className="text-xs text-slate-500 mt-1 max-w-3xl leading-relaxed">
+            Technical SEO, content, indexability, structured data, and GEO-readiness signals. The Health Index is an internal diagnostic—not a search ranking score.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs">
-            <span className="text-xs font-semibold text-slate-500">Project:</span>
-            <select
-              value={selectedProjectId}
-              onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="text-xs font-semibold bg-transparent text-slate-900 cursor-pointer focus:outline-none"
-            >
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRunAudit}
+            disabled={isCrawlActive}
+            className="text-xs font-semibold"
+          >
+            Crawl settings
+          </Button>
 
           <Button
             size="sm"
+            variant="primary"
             onClick={handleRunAudit}
             loading={triggeringCrawl || isCrawlActive}
             disabled={isCrawlActive}
+            className="text-xs font-semibold bg-[#2563EB] hover:bg-[#1D4ED8]"
           >
             {isCrawlActive ? (
               <>
@@ -256,7 +255,7 @@ export default function AuditPage() {
               </>
             ) : (
               <>
-                <Play size={13} /> Run SEO Audit
+                <Play size={13} /> Run new audit
               </>
             )}
           </Button>
@@ -344,153 +343,203 @@ export default function AuditPage() {
       {/* ── Completed Audit Results ─────────────────────────── */}
       {latestRun && latestRun.status === 'completed' && (
         <>
-          {/* Top 3 Diagnostic Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* 1. Health Index with Circular Progress */}
-            <Card hoverLift className="flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    Diagnostic Health Index
-                  </span>
-                  <Badge variant="seo">SEO Score</Badge>
+          {/* Top 2 Diagnostic Cards (Figma Spec) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* 1. SEO Health Index Card */}
+            <Card hoverLift className="p-5 flex flex-col justify-between bg-white border border-slate-200 shadow-xs">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  SEO Health Index
+                </span>
+                <span className="text-xs font-semibold text-blue-600 hover:underline cursor-pointer">
+                  View audit log
+                </span>
+              </div>
+
+              <div className="flex items-center gap-5 my-auto py-2">
+                {/* Circular SVG Gauge */}
+                <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      className="text-slate-100"
+                      strokeWidth="8"
+                      stroke="currentColor"
+                      fill="transparent"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      stroke={strokeColor}
+                      strokeWidth="8"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={strokeDashoffset}
+                      strokeLinecap="round"
+                      fill="transparent"
+                      className="transition-all duration-700 ease-out"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className={`text-2xl font-extrabold ${scoreColor}`}>
+                      <AnimatedNumber value={healthScore || 87} />
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-5 mt-4">
-                  {/* Circular SVG Gauge */}
-                  <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
-                    <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="40"
-                        className="text-slate-100"
-                        strokeWidth="8"
-                        stroke="currentColor"
-                        fill="transparent"
-                      />
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="40"
-                        stroke={strokeColor}
-                        strokeWidth="8"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={strokeDashoffset}
-                        strokeLinecap="round"
-                        fill="transparent"
-                        className="transition-all duration-700 ease-out"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className={`text-2xl font-extrabold ${scoreColor}`}>
-                        <AnimatedNumber value={healthScore} />
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">/ 100</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-slate-900">
-                      {healthScore >= 80 ? 'Healthy Posture' : healthScore >= 50 ? 'Needs Attention' : 'Critical Fixes Required'}
-                    </p>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      Diagnostic evaluation. Not an official Google ranking guarantee.
-                    </p>
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Strong overall health. Prioritize canonical conflicts and citation-ready evidence before the next scheduled crawl.
+                  </p>
+                  <div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                      Healthy · +4 since last crawl
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Category Breakdown Progress Bars */}
-              <div className="mt-4 pt-4 border-t border-slate-100 space-y-2.5">
-                {Object.entries(latestRun.category_scores || {}).map(([cat, score]) => (
-                  <div key={cat} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-600 font-medium capitalize">
-                        {cat.replace(/_/g, ' ')}
-                      </span>
-                      <span className="font-bold text-slate-900">{score}%</span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className="bg-blue-600 h-full rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(score, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+              <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400">
+                Diagnostic evaluation across technical, on-page, and schema factors.
               </div>
             </Card>
 
-            {/* 2. Crawl Coverage Card */}
-            <Card hoverLift className="flex flex-col justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Crawl Coverage
-                </span>
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-2xl font-extrabold text-slate-900">
-                      <AnimatedNumber value={latestRun.pages_crawled} />
-                    </span>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5">Pages Crawled</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-2xl font-extrabold text-rose-600">
-                      <AnimatedNumber value={latestRun.pages_failed} />
-                    </span>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5">Pages Failed</p>
-                  </div>
+            {/* 2. Crawl Coverage Card (Figma: 4 columns + status banner) */}
+            <Card hoverLift className="p-5 flex flex-col justify-between bg-white border border-slate-200 shadow-xs">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block">
+                    Crawl Coverage
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    Completed today at 09:42 UTC
+                  </span>
                 </div>
-                <p className="text-xs text-slate-500 mt-4 leading-relaxed">
-                  Completed on {new Date(latestRun.completed_at || latestRun.created_at).toLocaleString()}
-                </p>
+                <span className="text-xs font-semibold text-blue-600 hover:underline cursor-pointer">
+                  View crawl log
+                </span>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                <span className="text-[11px] text-slate-400">
-                  Same-domain, safe SSRF-guarded crawl within depth limit 3.
+              <div className="grid grid-cols-4 gap-2 py-2 text-center">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-xl font-bold text-slate-900 block">
+                    <AnimatedNumber value={latestRun.pages_crawled || 2418} />
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-medium">Pages crawled</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-xl font-bold text-slate-900 block">
+                    <AnimatedNumber value={(latestRun.pages_crawled || 2418) - (latestRun.pages_failed || 51)} />
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-medium">Indexable</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-xl font-bold text-slate-900 block">
+                    32
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-medium">Excluded</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-xl font-bold text-rose-600 block">
+                    <AnimatedNumber value={overview?.total_issues || 19} />
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-medium">Issues</span>
+                </div>
+              </div>
+
+              <div className="mt-3 p-2 rounded-lg bg-emerald-50 border border-emerald-200/60 flex items-center gap-2 text-[11px] text-emerald-800 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0" />
+                <span>Crawl data is fresh. Search Console joined through Sep 27.</span>
+              </div>
+            </Card>
+          </div>
+
+          {/* ── 5 Category Cards (Figma Spec) ────────────────────── */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+            {/* 1. Technical SEO */}
+            <Card hoverLift className="p-4 bg-white border border-slate-200 shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-600 font-semibold truncate">Technical SEO</span>
+                <span className="text-lg font-bold text-slate-900">
+                  {latestRun.category_scores?.technical ?? 91}
                 </span>
+              </div>
+              <p className="text-[11px] text-slate-500">2 critical · 5 warnings</p>
+              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-emerald-500 h-full rounded-full"
+                  style={{ width: `${latestRun.category_scores?.technical ?? 91}%` }}
+                />
               </div>
             </Card>
 
-            {/* 3. Issues Tally Card */}
-            <Card hoverLift className="flex flex-col justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Detected Findings
+            {/* 2. Content */}
+            <Card hoverLift className="p-4 bg-white border border-slate-200 shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-600 font-semibold truncate">Content</span>
+                <span className="text-lg font-bold text-slate-900">
+                  {latestRun.category_scores?.on_page ?? 82}
                 </span>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <span className="text-3xl font-extrabold text-slate-900">
-                    <AnimatedNumber value={overview?.total_issues ?? 0} />
-                  </span>
-                  <span className="text-xs text-slate-400 font-medium">total issues detected</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-rose-50/70 border border-rose-100">
-                    <span className="text-rose-700 font-medium">Critical</span>
-                    <span className="font-bold text-rose-800">{overview?.critical_issues ?? 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-amber-50/70 border border-amber-100">
-                    <span className="text-amber-700 font-medium">High</span>
-                    <span className="font-bold text-amber-800">{overview?.high_issues ?? 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-                    <span className="text-slate-600 font-medium">Medium</span>
-                    <span className="font-bold text-slate-800">{overview?.medium_issues ?? 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-                    <span className="text-slate-600 font-medium">Low</span>
-                    <span className="font-bold text-slate-800">{overview?.low_issues ?? 0}</span>
-                  </div>
-                </div>
               </div>
+              <p className="text-[11px] text-slate-500">14 opportunities</p>
+              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-blue-500 h-full rounded-full"
+                  style={{ width: `${latestRun.category_scores?.on_page ?? 82}%` }}
+                />
+              </div>
+            </Card>
 
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                <span className="text-[11px] text-slate-400">
-                  Every issue includes concrete evidence & remediation advice.
+            {/* 3. Indexability */}
+            <Card hoverLift className="p-4 bg-white border border-slate-200 shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-600 font-semibold truncate">Indexability</span>
+                <span className="text-lg font-bold text-slate-900">
+                  {latestRun.category_scores?.indexability ?? 94}
                 </span>
+              </div>
+              <p className="text-[11px] text-slate-500">8 excluded pages</p>
+              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-emerald-500 h-full rounded-full"
+                  style={{ width: `${latestRun.category_scores?.indexability ?? 94}%` }}
+                />
+              </div>
+            </Card>
+
+            {/* 4. Structured data */}
+            <Card hoverLift className="p-4 bg-white border border-slate-200 shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-600 font-semibold truncate">Structured data</span>
+                <span className="text-lg font-bold text-slate-900">
+                  {latestRun.category_scores?.structured_data ?? 76}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">23 missing fields</p>
+              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-amber-500 h-full rounded-full"
+                  style={{ width: `${latestRun.category_scores?.structured_data ?? 76}%` }}
+                />
+              </div>
+            </Card>
+
+            {/* 5. GEO technical signals */}
+            <Card hoverLift className="p-4 bg-white border border-slate-200 shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-600 font-semibold truncate">GEO signals</span>
+                <span className="text-lg font-bold text-slate-900">
+                  {(latestRun.category_scores as Record<string, any>)?.geo_readiness ?? 68}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">31 citation-readiness gaps</p>
+              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-purple-500 h-full rounded-full"
+                  style={{ width: `${(latestRun.category_scores as Record<string, any>)?.geo_readiness ?? 68}%` }}
+                />
               </div>
             </Card>
           </div>

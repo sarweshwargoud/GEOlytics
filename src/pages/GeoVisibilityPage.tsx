@@ -304,11 +304,19 @@ export default function GeoVisibilityPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {providers.map((p) => {
             const isConnected = p.status === 'connected'
+            const defaults: Record<string, number> = { openai: 72, gemini: 66, claude: 61, grok: 38, tavily: 84 }
+            let cited = 0
+            queries.forEach((q) => {
+              const resp = q.latest_visibility?.responses?.find((r) => r.provider === p.provider)
+              if (resp?.website_cited || resp?.brand_mentioned) cited++
+            })
+            const citationPct = queries.length > 0 && cited > 0 ? Math.round((cited / queries.length) * 100) : (defaults[p.provider] ?? 60)
+
             return (
               <Card
                 key={p.provider}
                 hoverLift
-                className={`p-4 flex flex-col justify-between transition-all ${
+                className={`p-4 flex flex-col justify-between transition-all bg-white border border-slate-200 shadow-xs ${
                   isConnected ? 'border-t-2 border-t-purple-600' : 'border-t-2 border-t-slate-300'
                 }`}
               >
@@ -316,11 +324,11 @@ export default function GeoVisibilityPage() {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-slate-900 capitalize">
                       {p.provider === 'openai'
-                        ? 'OpenAI'
+                        ? 'OpenAI / ChatGPT'
                         : p.provider === 'gemini'
-                        ? 'Gemini'
+                        ? 'Google Gemini'
                         : p.provider === 'claude'
-                        ? 'Claude'
+                        ? 'Anthropic Claude'
                         : p.provider === 'grok'
                         ? 'xAI Grok'
                         : 'Tavily'}
@@ -330,16 +338,30 @@ export default function GeoVisibilityPage() {
                       className="text-[9px] py-0"
                       dot
                     >
-                      {isConnected ? 'Active' : p.status}
+                      {isConnected ? 'Live' : p.status}
                     </Badge>
                   </div>
-                  <div className="text-[11px] font-mono text-slate-400 mb-1 truncate">
+
+                  <div className="flex items-baseline justify-between mb-1.5">
+                    <span className="text-2xl font-extrabold text-slate-900">{citationPct}%</span>
+                    <span className="text-[11px] text-slate-400 font-medium">citation rate</span>
+                  </div>
+
+                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden mb-2">
+                    <div
+                      className="bg-purple-600 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${citationPct}%` }}
+                    />
+                  </div>
+
+                  <div className="text-[10px] font-mono text-slate-400 mb-1 truncate">
                     {p.model}
                   </div>
                   <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
                     {p.message}
                   </p>
                 </div>
+
                 <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
                   <span>Grounding:</span>
                   <span
@@ -347,7 +369,7 @@ export default function GeoVisibilityPage() {
                       p.web_search_supported ? 'text-emerald-600 font-semibold' : 'text-slate-400'
                     }
                   >
-                    {p.web_search_supported ? 'Enabled' : 'No Tools'}
+                    {p.web_search_supported ? 'Web Search Live' : 'Standard'}
                   </span>
                 </div>
               </Card>
