@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   Wrench,
   Play,
@@ -22,9 +22,8 @@ import Input from '@/components/ui/Input'
 import AnimatedNumber from '@/components/ui/AnimatedNumber'
 import { EmptyState, LoadingState } from '@/components/ui/StateDisplay'
 import { useApi } from '@/hooks/useApi'
+import { useProject } from '@/contexts/ProjectContext'
 import type {
-  Project,
-  ProjectListResponse,
   AuditOverview,
   SEOIssue,
   CrawlPage,
@@ -32,11 +31,11 @@ import type {
 
 export default function AuditPage() {
   const api = useApi()
-  const [searchParams, setSearchParams] = useSearchParams()
-
-  const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
-  const [loadingProjects, setLoadingProjects] = useState(true)
+  const {
+    projects,
+    selectedProjectId,
+    loadingProjects,
+  } = useProject()
 
   // Audit state
   const [overview, setOverview] = useState<AuditOverview | null>(null)
@@ -55,28 +54,6 @@ export default function AuditPage() {
 
   // Active polling reference
   const pollTimerRef = useRef<number | null>(null)
-
-  // 1. Fetch user projects
-  useEffect(() => {
-    async function loadProjects() {
-      setLoadingProjects(true)
-      try {
-        const res = await api.get<ProjectListResponse>('/api/v1/projects')
-        setProjects(res.projects)
-        const queryProjectId = searchParams.get('projectId') || searchParams.get('project')
-        if (queryProjectId && res.projects.some((p) => p.id === queryProjectId)) {
-          setSelectedProjectId(queryProjectId)
-        } else if (res.projects.length > 0) {
-          setSelectedProjectId(res.projects[0].id)
-        }
-      } catch (err) {
-        console.error('Failed to load projects', err)
-      } finally {
-        setLoadingProjects(false)
-      }
-    }
-    loadProjects()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 2. Fetch audit data when project changes
   const fetchAuditData = async (projId: string) => {
@@ -109,7 +86,6 @@ export default function AuditPage() {
 
   useEffect(() => {
     if (selectedProjectId) {
-      setSearchParams({ project: selectedProjectId })
       fetchAuditData(selectedProjectId)
     }
     return () => stopPolling()

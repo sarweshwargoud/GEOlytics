@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { ProjectProvider } from '@/contexts/ProjectContext'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import LoginPage from '@/pages/LoginPage'
@@ -18,18 +19,19 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          {/* Public */}
-          <Route path="/login" element={<LoginPage />} />
+        <ProjectProvider>
+          <Routes>
+            {/* Public */}
+            <Route path="/login" element={<LoginPage />} />
 
-          {/* Authenticated shell */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <AppLayout />
-              </ProtectedRoute>
-            }
-          >
+            {/* Authenticated shell */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/seo" element={<SearchConsolePage />} />
             <Route path="/geo" element={<GeoVisibilityPage />} />
@@ -56,7 +58,8 @@ export default function App() {
             />
           </Route>
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      </ProjectProvider>
+    </BrowserRouter>
+  </AuthProvider>
   )
 }

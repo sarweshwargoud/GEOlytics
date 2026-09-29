@@ -27,9 +27,13 @@ END
 import asyncio
 from datetime import datetime
 import logging
-from typing import Any, Dict, List, Optional
+import json
+import os
+from typing import Dict, Any, List, Optional, Tuple
 from langgraph.graph import StateGraph, START, END
+import httpx
 
+from app.core.config import get_settings
 from app.core.database import get_supabase_admin
 from app.services.agent.hindsight import HindsightMemoryService
 from app.services.agent.models import (
@@ -473,8 +477,97 @@ async def generate_recommendations_node(state: LangGraphAgentState) -> Dict[str,
     memories = state.get("recalled_memories", [])
     synthesis = state.get("reasoning_synthesis", {})
 
-    raw_recommendations: List[RecommendationModel] = []
+    # ── Gemini LLM Recommendation Generation ─────────────────────────────────
+    settings = get_settings()
+    gemini_key = settings.gemini_api_key
+    gemini_model = os.getenv("GEMINI_MODEL", getattr(settings, "gemini_model", "gemini-2.5-flash"))
 
+    gemini_recs: List[RecommendationModel] = []
+    if gemini_key:
+        try:
+            prompt = (
+                f"You are an expert AI Search (GEO) and Technical SEO optimization intelligence agent.\n"
+                f"Analyze the collected project intelligence for website: '{website_url}' (Brand: '{target_brand}'):\n"
+                f"- Technical SEO Crawl & Issues: {json.dumps(seo)[:1500]}\n"
+                f"- GEO / AI Search Visibility: {json.dumps(geo)[:1500]}\n"
+                f"- Competitor Findings: {json.dumps(competitors)[:1000]}\n"
+                f"- Agent Memory & Previous Learnings: {json.dumps([m['content'] for m in memories[:3]])[:800]}\n"
+                f"- Synthesized Observations: {json.dumps(synthesis)[:1000]}\n\n"
+                f"Generate 3 to 4 actionable, evidence-based recommendations tailored specifically to this website.\n"
+                f"Do NOT provide generic filler or fake claims. Each recommendation must cite actual observed data points.\n"
+                f"Format as a JSON array of objects with the following keys:\n"
+                f"- title: concise title\n"
+                f"- type: one of 'technical', 'content', 'schema', 'metadata', 'geo'\n"
+                f"- priority: one of 'critical', 'high', 'medium', 'low'\n"
+                f"- action: specific concrete action steps\n"
+                f"- reason: explanation rooted in the observed data\n"
+                f"- hypothesis: expected causal mechanism\n"
+                f"- confidence: float between 0.70 and 0.98\n"
+                f"- evidence: list of specific strings citing observed evidence\n"
+                f"- affected_pages: list of relevant URL strings\n"
+                f"- affected_queries: list of query strings\n"
+                f"- suggested_experiment: testable experiment design with timeline\n"
+                f"- measurement_criteria: list of 2-3 specific measurable success criteria\n"
+            )
+
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={gemini_key}"
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "responseMimeType": "application/json",
+                    "temperature": 0.2,
+                },
+            }
+
+            async with httpx.AsyncClient(timeout=35.0) as client:
+                res = await client.post(url, json=payload)
+                if res.status_code == 200:
+                    data = res.json()
+                    candidate = data.get("candidates", [{}])[0]
+                    content_parts = candidate.get("content", {}).get("parts", [])
+                    raw_text = "".join(p.get("text", "") for p in content_parts).strip()
+                    parsed = json.loads(raw_text)
+                    if isinstance(parsed, list) and len(parsed) > 0:
+                        for item in parsed:
+                            rec_type = item.get("type", "content").lower()
+                            if rec_type not in ["technical", "content", "schema", "metadata", "geo"]:
+                                rec_type = "content"
+                            rec_priority = item.get("priority", "medium").lower()
+                            if rec_priority not in ["critical", "high", "medium", "low"]:
+                                rec_priority = "medium"
+
+                            gemini_recs.append(
+                                RecommendationModel(
+                                    project_id=project_id,
+                                    title=item.get("title", f"Optimize {rec_type} for {target_brand}"),
+                                    type=rec_type,
+                                    priority=rec_priority,
+                                    action=item.get("action", ""),
+                                    reason=item.get("reason", ""),
+                                    hypothesis=item.get("hypothesis", ""),
+                                    confidence=float(item.get("confidence", 0.85)),
+                                    status="pending",
+                                    evidence=item.get("evidence") or ["Identified via Gemini project intelligence scan."],
+                                    affected_pages=item.get("affected_pages") or [website_url],
+                                    affected_queries=item.get("affected_queries") or [],
+                                    suggested_experiment=item.get("suggested_experiment", "Monitor SEO and GEO metrics over a 28-day window."),
+                                    measurement_criteria=item.get("measurement_criteria") or ["Measured impact on organic metrics and citations"],
+                                    requires_approval=True,
+                                )
+                            )
+                        log.append(f"generate_recommendations: Generated {len(gemini_recs)} intelligent recommendations via Gemini ({gemini_model}).")
+        except Exception as e:
+            logger.warning("Gemini recommendation generation error: %s", e)
+            log.append(f"generate_recommendations: Gemini invocation warning ({e}), falling back to synthesis logic.")
+
+    if gemini_recs:
+        return {
+            "raw_recommendations": [r.model_dump() for r in gemini_recs],
+            "execution_log": log,
+        }
+
+    # ── Fallback: Deterministic Synthesis Proposals ──────────────────────────
+    raw_recommendations: List[RecommendationModel] = []
     # Memory reference helper
     memory_notes = [f"{m['title']}: {m['content']}" for m in memories[:2]]
 

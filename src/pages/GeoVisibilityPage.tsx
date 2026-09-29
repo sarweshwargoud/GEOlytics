@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import {
   Bot,
   Plus,
@@ -20,9 +19,8 @@ import Input from '@/components/ui/Input'
 import AnimatedNumber from '@/components/ui/AnimatedNumber'
 import { LoadingState } from '@/components/ui/StateDisplay'
 import { useApi } from '@/hooks/useApi'
+import { useProject } from '@/contexts/ProjectContext'
 import type {
-  Project,
-  ProjectListResponse,
   ProviderCapability,
   ProviderStatusResponse,
   TrackedQuery,
@@ -33,11 +31,12 @@ import type {
 
 export default function GeoVisibilityPage() {
   const api = useApi()
-  const [searchParams, setSearchParams] = useSearchParams()
-
-  const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
-  const [loadingProjects, setLoadingProjects] = useState(true)
+  const {
+    projects,
+    selectedProjectId,
+    setSelectedProjectId,
+    loadingProjects,
+  } = useProject()
 
   // GEO State
   const [providers, setProviders] = useState<ProviderCapability[]>([])
@@ -66,29 +65,6 @@ export default function GeoVisibilityPage() {
   const [tavilyQuery, setTavilyQuery] = useState('')
   const [tavilyLoading, setTavilyLoading] = useState(false)
   const [tavilyResult, setTavilyResult] = useState<CompetitorResearchResult | null>(null)
-
-  // 1. Load Projects
-  useEffect(() => {
-    async function loadProjects() {
-      setLoadingProjects(true)
-      try {
-        const res = await api.get<ProjectListResponse>('/api/v1/projects')
-        setProjects(res.projects)
-        const paramId = searchParams.get('project')
-        if (paramId && res.projects.some((p) => p.id === paramId)) {
-          setSelectedProjectId(paramId)
-        } else if (res.projects.length > 0) {
-          setSelectedProjectId(res.projects[0].id)
-          setSearchParams({ project: res.projects[0].id })
-        }
-      } catch (err: unknown) {
-        setErrorMessage(err instanceof Error ? err.message : 'Failed to load projects')
-      } finally {
-        setLoadingProjects(false)
-      }
-    }
-    loadProjects()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 2. Load Provider Statuses & Tracked Queries
   const loadGeoData = async (projectId: string) => {
@@ -120,7 +96,6 @@ export default function GeoVisibilityPage() {
 
   const handleProjectChange = (id: string) => {
     setSelectedProjectId(id)
-    setSearchParams({ project: id })
   }
 
   // 3. Create Tracked Query

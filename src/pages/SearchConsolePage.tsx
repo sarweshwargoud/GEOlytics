@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import {
   RotateCw,
   TrendingUp,
@@ -30,20 +29,20 @@ import Input from '@/components/ui/Input'
 import AnimatedNumber from '@/components/ui/AnimatedNumber'
 import { LoadingState } from '@/components/ui/StateDisplay'
 import { useApi } from '@/hooks/useApi'
+import { useProject } from '@/contexts/ProjectContext'
 import type {
-  Project,
-  ProjectListResponse,
   SearchPerformanceReport,
   CompetitorResearchResult,
 } from '@/types'
 
 export default function SearchConsolePage() {
   const api = useApi()
-  const [searchParams, setSearchParams] = useSearchParams()
-
-  const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
-  const [loadingProjects, setLoadingProjects] = useState(true)
+  const {
+    projects,
+    selectedProjectId,
+    setSelectedProjectId,
+    loadingProjects,
+  } = useProject()
 
   // GSC State
   const [days, setDays] = useState<number>(28)
@@ -60,29 +59,6 @@ export default function SearchConsolePage() {
   const [runningFallback, setRunningFallback] = useState(false)
   const [fallbackResult, setFallbackResult] = useState<CompetitorResearchResult | null>(null)
   const [fallbackError, setFallbackError] = useState('')
-
-  // 1. Fetch user projects
-  useEffect(() => {
-    async function loadProjects() {
-      setLoadingProjects(true)
-      try {
-        const res = await api.get<ProjectListResponse>('/api/v1/projects')
-        setProjects(res.projects)
-        const paramId = searchParams.get('project')
-        if (paramId && res.projects.some((p) => p.id === paramId)) {
-          setSelectedProjectId(paramId)
-        } else if (res.projects.length > 0) {
-          setSelectedProjectId(res.projects[0].id)
-          setSearchParams({ project: res.projects[0].id })
-        }
-      } catch (err: unknown) {
-        setErrorMessage(err instanceof Error ? err.message : 'Failed to load projects')
-      } finally {
-        setLoadingProjects(false)
-      }
-    }
-    loadProjects()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 2. Fetch GSC Performance Report when project or days change
   const fetchReport = async (projectId: string, periodDays: number) => {
@@ -115,7 +91,6 @@ export default function SearchConsolePage() {
 
   const handleProjectChange = (id: string) => {
     setSelectedProjectId(id)
-    setSearchParams({ project: id })
   }
 
   // 3. Connect GSC via OAuth

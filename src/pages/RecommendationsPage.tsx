@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   Play,
   RotateCw,
@@ -20,9 +20,8 @@ import Badge from '@/components/ui/Badge'
 import AnimatedNumber from '@/components/ui/AnimatedNumber'
 import { LoadingState } from '@/components/ui/StateDisplay'
 import { useApi } from '@/hooks/useApi'
+import { useProject } from '@/contexts/ProjectContext'
 import type {
-  Project,
-  ProjectListResponse,
   Recommendation,
   AgentRunResponse,
 } from '@/types'
@@ -30,11 +29,12 @@ import type {
 export default function RecommendationsPage() {
   const api = useApi()
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-
-  const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
-  const [loadingProjects, setLoadingProjects] = useState(true)
+  const {
+    projects,
+    selectedProjectId,
+    setSelectedProjectId,
+    loadingProjects,
+  } = useProject()
 
   // Recommendations State
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
@@ -56,29 +56,6 @@ export default function RecommendationsPage() {
   const [rejectingRec, setRejectingRec] = useState<Recommendation | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [submittingAction, setSubmittingAction] = useState(false)
-
-  // 1. Fetch user projects
-  useEffect(() => {
-    async function loadProjects() {
-      setLoadingProjects(true)
-      try {
-        const res = await api.get<ProjectListResponse>('/api/v1/projects')
-        setProjects(res.projects)
-        const paramId = searchParams.get('project')
-        if (paramId && res.projects.some((p) => p.id === paramId)) {
-          setSelectedProjectId(paramId)
-        } else if (res.projects.length > 0) {
-          setSelectedProjectId(res.projects[0].id)
-          setSearchParams({ project: res.projects[0].id })
-        }
-      } catch (err: unknown) {
-        setErrorMessage(err instanceof Error ? err.message : 'Failed to load projects')
-      } finally {
-        setLoadingProjects(false)
-      }
-    }
-    loadProjects()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 2. Fetch recommendations for selected project
   const fetchRecommendations = async (projectId: string) => {
@@ -111,7 +88,6 @@ export default function RecommendationsPage() {
 
   const handleProjectChange = (id: string) => {
     setSelectedProjectId(id)
-    setSearchParams({ project: id })
   }
 
   // 3. Trigger LangGraph Agent Run

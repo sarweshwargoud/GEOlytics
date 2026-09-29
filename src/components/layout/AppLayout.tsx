@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { NavLink, Outlet, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import { useApi } from '@/hooks/useApi'
+import { useProject } from '@/contexts/ProjectContext'
 import {
   LayoutDashboard,
   Search,
@@ -22,7 +22,6 @@ import {
   TrendingUp,
   RotateCw,
 } from 'lucide-react'
-import type { Project, ProjectListResponse } from '@/types'
 
 interface NavItem {
   to: string
@@ -34,46 +33,18 @@ interface NavItem {
 
 export default function AppLayout() {
   const { user, signOut } = useAuth()
-  const api = useApi()
+  const { projects, selectedProjectId, setSelectedProjectId } = useProject()
   const navigate = useNavigate()
   const location = useLocation()
-  const [searchParams, setSearchParams] = useSearchParams()
 
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
-
-  // Project state in sidebar
-  const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
   const pendingRecsCount = 6
 
-  // Load projects list
-  useEffect(() => {
-    async function loadProjects() {
-      try {
-        const res = await api.get<ProjectListResponse>('/api/v1/projects')
-        const items = res.projects || []
-        setProjects(items)
-        const qpId = searchParams.get('project') || searchParams.get('projectId')
-        if (qpId && items.some((p) => p.id === qpId)) {
-          setSelectedProjectId(qpId)
-        } else if (items.length > 0) {
-          setSelectedProjectId(items[0].id)
-        }
-      } catch {
-        // Fallback gracefully
-      }
-    }
-    loadProjects()
-  }, [])
-
-  // Sync selected project with URL query param
+  // Sync selected project with URL query param and global context
   const handleProjectChange = (projId: string) => {
     setSelectedProjectId(projId)
-    const newParams = new URLSearchParams(searchParams)
-    newParams.set('project', projId)
-    setSearchParams(newParams)
   }
 
   // Navigation items matching Figma Dev Mode names & order

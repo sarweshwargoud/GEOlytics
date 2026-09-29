@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   MousePointer,
   Eye,
@@ -24,9 +24,8 @@ import Badge from '@/components/ui/Badge'
 import AnimatedNumber from '@/components/ui/AnimatedNumber'
 import { LoadingState } from '@/components/ui/StateDisplay'
 import { useApi } from '@/hooks/useApi'
+import { useProject } from '@/contexts/ProjectContext'
 import type {
-  Project,
-  ProjectListResponse,
   Recommendation,
   Experiment,
   SearchPerformanceReport,
@@ -36,11 +35,14 @@ import type {
 
 export default function DashboardPage() {
   const api = useApi()
-  const [searchParams] = useSearchParams()
+  const {
+    projects,
+    selectedProjectId,
+    createProject,
+    refreshProjects,
+    loadingProjects,
+  } = useProject()
 
-  const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
-  const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
 
@@ -58,35 +60,8 @@ export default function DashboardPage() {
   const [auditOverview, setAuditOverview] = useState<AuditOverview | null>(null)
   const [geoQueries, setGeoQueries] = useState<TrackedQuery[]>([])
 
-  const fetchDashboardData = async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true)
-    else setLoading(true)
-    setError('')
-    try {
-      const data = await api.get<ProjectListResponse>('/api/v1/projects')
-      const projectList = data.projects || []
-      setProjects(projectList)
-
-      const qpId = searchParams.get('project') || searchParams.get('projectId')
-      const activeProjId = qpId && projectList.some((p) => p.id === qpId)
-        ? qpId
-        : projectList.length > 0
-          ? projectList[0].id
-          : ''
-
-      if (activeProjId) {
-        setSelectedProjectId(activeProjId)
-        await loadProjectSpecificIntelligence(activeProjId)
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load projects')
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }
-
   const loadProjectSpecificIntelligence = async (projectId: string) => {
+    if (!projectId) return
     try {
       const [recs, exps, gsc, audit, geo] = await Promise.all([
         api.get<Recommendation[]>(`/api/v1/projects/${projectId}/recommendations`).catch(() => []),
@@ -109,14 +84,32 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    if (selectedProjectId) {
+      loadProjectSpecificIntelligence(selectedProjectId)
+    }
+  }, [selectedProjectId])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    setError('')
+    try {
+      await refreshProjects(selectedProjectId)
+      if (selectedProjectId) {
+        await loadProjectSpecificIntelligence(selectedProjectId)
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to refresh intelligence')
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreating(true)
+    setError('')
     try {
-      await api.post('/api/v1/projects', {
+      await createProject({
         name: name.trim(),
         website_url: url.trim(),
         industry: industry.trim() || undefined,
@@ -125,7 +118,7 @@ export default function DashboardPage() {
       setUrl('')
       setIndustry('')
       setShowCreate(false)
-      fetchDashboardData(true)
+      // Intelligence for newProj.id will be loaded automatically via useEffect on selectedProjectId
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create project')
     } finally {
@@ -160,7 +153,7 @@ export default function DashboardPage() {
   const hasTimeseries = isGscConnected && gscReport?.timeseries && gscReport.timeseries.length > 0
   const gscChartData = hasTimeseries ? gscReport!.timeseries : []
 
-  if (loading) {
+  if (loadingProjects && projects.length === 0) {
     return <LoadingState message="Loading intelligence overview..." />
   }
 
@@ -189,7 +182,7 @@ export default function DashboardPage() {
             size="sm"
             variant="outline"
             className="flex items-center gap-1.5 text-xs font-semibold"
-            onClick={() => fetchDashboardData(true)}
+            onClick={handleRefresh}
             loading={refreshing}
           >
             <Sliders size={13} className="text-slate-500" />

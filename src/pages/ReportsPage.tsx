@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import {
   FileText,
   Play,
@@ -21,15 +20,17 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import { LoadingState } from '@/components/ui/StateDisplay'
 import { useApi } from '@/hooks/useApi'
-import type { Project, ProjectListResponse, Report } from '@/types'
+import { useProject } from '@/contexts/ProjectContext'
+import type { Report } from '@/types'
 
 export default function ReportsPage() {
   const api = useApi()
-  const [searchParams, setSearchParams] = useSearchParams()
-
-  const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
-  const [loadingProjects, setLoadingProjects] = useState(true)
+  const {
+    projects,
+    selectedProjectId,
+    setSelectedProjectId,
+    loadingProjects,
+  } = useProject()
 
   const [reports, setReports] = useState<Report[]>([])
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
@@ -37,32 +38,6 @@ export default function ReportsPage() {
   const [generatingReport, setGeneratingReport] = useState(false)
   const [copied, setCopied] = useState(false)
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-
-  // 1. Load user projects
-  useEffect(() => {
-    async function loadProjects() {
-      setLoadingProjects(true)
-      try {
-        const res = await api.get<ProjectListResponse>('/api/v1/projects')
-        const items = res.projects || []
-        setProjects(items)
-        const qpId = searchParams.get('projectId') || searchParams.get('project')
-        if (qpId && items.some((p) => p.id === qpId)) {
-          setSelectedProjectId(qpId)
-        } else if (items.length > 0) {
-          setSelectedProjectId(items[0].id)
-        }
-      } catch (err: unknown) {
-        setStatusMessage({
-          type: 'error',
-          text: err instanceof Error ? err.message : 'Failed to load projects',
-        })
-      } finally {
-        setLoadingProjects(false)
-      }
-    }
-    loadProjects()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 2. Load reports for selected project
   useEffect(() => {
@@ -156,7 +131,6 @@ export default function ReportsPage() {
                 value={selectedProjectId}
                 onChange={(e) => {
                   setSelectedProjectId(e.target.value)
-                  setSearchParams({ project: e.target.value })
                 }}
                 className="text-xs font-semibold bg-transparent text-slate-900 cursor-pointer focus:outline-none"
               >
