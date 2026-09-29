@@ -384,19 +384,31 @@ export default function AuditPage() {
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className={`text-2xl font-extrabold ${scoreColor}`}>
-                      <AnimatedNumber value={healthScore || 87} />
+                      {latestRun.seo_health_score !== undefined && latestRun.seo_health_score !== null ? (
+                        <AnimatedNumber value={latestRun.seo_health_score} />
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-400">N/A</span>
+                      )}
                     </span>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    Strong overall health. Prioritize canonical conflicts and citation-ready evidence before the next scheduled crawl.
+                    {latestRun.seo_health_score !== undefined && latestRun.seo_health_score !== null
+                      ? 'Diagnostic evaluation across technical, on-page, and schema factors.'
+                      : 'Audit completed. Diagnostic scores are computed based on crawled pages and issues.'}
                   </p>
                   <div>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                      Healthy · +4 since last crawl
-                    </span>
+                    {latestRun.seo_health_score !== undefined && latestRun.seo_health_score !== null ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                        Health Score {latestRun.seo_health_score} / 100
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200/60">
+                        Score pending
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -414,7 +426,11 @@ export default function AuditPage() {
                     Crawl Coverage
                   </span>
                   <span className="text-[11px] text-slate-400">
-                    Completed today at 09:42 UTC
+                    {latestRun.completed_at
+                      ? `Completed ${new Date(latestRun.completed_at).toLocaleString()}`
+                      : latestRun.status
+                        ? `Status: ${latestRun.status}`
+                        : 'No completed crawls'}
                   </span>
                 </div>
                 <span className="text-xs font-semibold text-blue-600 hover:underline cursor-pointer">
@@ -425,25 +441,43 @@ export default function AuditPage() {
               <div className="grid grid-cols-4 gap-2 py-2 text-center">
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                   <span className="text-xl font-bold text-slate-900 block">
-                    <AnimatedNumber value={latestRun.pages_crawled || 2418} />
+                    {latestRun.pages_crawled !== undefined && latestRun.pages_crawled !== null ? (
+                      <AnimatedNumber value={latestRun.pages_crawled} />
+                    ) : (
+                      <span className="text-xs font-semibold text-slate-400">Data unavailable</span>
+                    )}
                   </span>
                   <span className="text-[10px] text-slate-500 font-medium">Pages crawled</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                   <span className="text-xl font-bold text-slate-900 block">
-                    <AnimatedNumber value={(latestRun.pages_crawled || 2418) - (latestRun.pages_failed || 51)} />
+                    {latestRun.pages_crawled !== undefined && latestRun.pages_failed !== undefined ? (
+                      <AnimatedNumber value={Math.max(0, (latestRun.pages_crawled ?? 0) - (latestRun.pages_failed ?? 0))} />
+                    ) : (
+                      <span className="text-xs font-semibold text-slate-400">Data unavailable</span>
+                    )}
                   </span>
                   <span className="text-[10px] text-slate-500 font-medium">Indexable</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                   <span className="text-xl font-bold text-slate-900 block">
-                    32
+                    {latestRun.pages_failed !== undefined && latestRun.pages_failed !== null ? (
+                      <AnimatedNumber value={latestRun.pages_failed} />
+                    ) : (
+                      <span className="text-xs font-semibold text-slate-400">Data unavailable</span>
+                    )}
                   </span>
-                  <span className="text-[10px] text-slate-500 font-medium">Excluded</span>
+                  <span className="text-[10px] text-slate-500 font-medium">Excluded / Failed</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                   <span className="text-xl font-bold text-rose-600 block">
-                    <AnimatedNumber value={overview?.total_issues || 19} />
+                    {overview?.total_issues !== undefined && overview?.total_issues !== null ? (
+                      <AnimatedNumber value={overview.total_issues} />
+                    ) : issues.length > 0 ? (
+                      <AnimatedNumber value={issues.length} />
+                    ) : (
+                      <span className="text-xs font-semibold text-slate-400">Data unavailable</span>
+                    )}
                   </span>
                   <span className="text-[10px] text-slate-500 font-medium">Issues</span>
                 </div>
@@ -451,7 +485,11 @@ export default function AuditPage() {
 
               <div className="mt-3 p-2 rounded-lg bg-emerald-50 border border-emerald-200/60 flex items-center gap-2 text-[11px] text-emerald-800 font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0" />
-                <span>Crawl data is fresh. Search Console joined through Sep 27.</span>
+                <span>
+                  {latestRun.completed_at
+                    ? `Crawl data completed on ${new Date(latestRun.completed_at).toLocaleDateString()}.`
+                    : 'Crawl completed.'}
+                </span>
               </div>
             </Card>
           </div>
@@ -463,14 +501,21 @@ export default function AuditPage() {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-600 font-semibold truncate">Technical SEO</span>
                 <span className="text-lg font-bold text-slate-900">
-                  {latestRun.category_scores?.technical ?? 91}
+                  {latestRun.category_scores?.technical !== undefined && latestRun.category_scores?.technical !== null ? (
+                    `${latestRun.category_scores.technical}`
+                  ) : (
+                    <span className="text-xs font-semibold text-slate-400">Data unavailable</span>
+                  )}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">2 critical · 5 warnings</p>
+              <p className="text-[11px] text-slate-500">
+                {issues.filter((i) => i.category === 'technical' && i.severity === 'critical').length} critical ·{' '}
+                {issues.filter((i) => i.category === 'technical' && i.severity !== 'critical').length} warnings
+              </p>
               <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                 <div
                   className="bg-emerald-500 h-full rounded-full"
-                  style={{ width: `${latestRun.category_scores?.technical ?? 91}%` }}
+                  style={{ width: `${latestRun.category_scores?.technical ?? 0}%` }}
                 />
               </div>
             </Card>
@@ -480,14 +525,21 @@ export default function AuditPage() {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-600 font-semibold truncate">Content</span>
                 <span className="text-lg font-bold text-slate-900">
-                  {latestRun.category_scores?.on_page ?? 82}
+                  {(latestRun.category_scores?.on_page ?? latestRun.category_scores?.content) !== undefined &&
+                  (latestRun.category_scores?.on_page ?? latestRun.category_scores?.content) !== null ? (
+                    `${latestRun.category_scores?.on_page ?? latestRun.category_scores?.content}`
+                  ) : (
+                    <span className="text-xs font-semibold text-slate-400">Data unavailable</span>
+                  )}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">14 opportunities</p>
+              <p className="text-[11px] text-slate-500">
+                {issues.filter((i) => i.category === 'content' || i.category === 'on_page').length} issues found
+              </p>
               <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                 <div
                   className="bg-blue-500 h-full rounded-full"
-                  style={{ width: `${latestRun.category_scores?.on_page ?? 82}%` }}
+                  style={{ width: `${(latestRun.category_scores?.on_page ?? latestRun.category_scores?.content) ?? 0}%` }}
                 />
               </div>
             </Card>
@@ -497,14 +549,20 @@ export default function AuditPage() {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-600 font-semibold truncate">Indexability</span>
                 <span className="text-lg font-bold text-slate-900">
-                  {latestRun.category_scores?.indexability ?? 94}
+                  {latestRun.category_scores?.indexability !== undefined && latestRun.category_scores?.indexability !== null ? (
+                    `${latestRun.category_scores.indexability}`
+                  ) : (
+                    <span className="text-xs font-semibold text-slate-400">Data unavailable</span>
+                  )}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">8 excluded pages</p>
+              <p className="text-[11px] text-slate-500">
+                {issues.filter((i) => i.category === 'indexability').length} indexability issues
+              </p>
               <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                 <div
                   className="bg-emerald-500 h-full rounded-full"
-                  style={{ width: `${latestRun.category_scores?.indexability ?? 94}%` }}
+                  style={{ width: `${latestRun.category_scores?.indexability ?? 0}%` }}
                 />
               </div>
             </Card>
@@ -514,14 +572,20 @@ export default function AuditPage() {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-600 font-semibold truncate">Structured data</span>
                 <span className="text-lg font-bold text-slate-900">
-                  {latestRun.category_scores?.structured_data ?? 76}
+                  {latestRun.category_scores?.structured_data !== undefined && latestRun.category_scores?.structured_data !== null ? (
+                    `${latestRun.category_scores.structured_data}`
+                  ) : (
+                    <span className="text-xs font-semibold text-slate-400">Data unavailable</span>
+                  )}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">23 missing fields</p>
+              <p className="text-[11px] text-slate-500">
+                {issues.filter((i) => i.category === 'structured_data').length} schema issues
+              </p>
               <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                 <div
                   className="bg-amber-500 h-full rounded-full"
-                  style={{ width: `${latestRun.category_scores?.structured_data ?? 76}%` }}
+                  style={{ width: `${latestRun.category_scores?.structured_data ?? 0}%` }}
                 />
               </div>
             </Card>
@@ -531,14 +595,21 @@ export default function AuditPage() {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-600 font-semibold truncate">GEO signals</span>
                 <span className="text-lg font-bold text-slate-900">
-                  {(latestRun.category_scores as Record<string, any>)?.geo_readiness ?? 68}
+                  {(latestRun.category_scores as Record<string, any>)?.geo_readiness !== undefined &&
+                  (latestRun.category_scores as Record<string, any>)?.geo_readiness !== null ? (
+                    `${(latestRun.category_scores as Record<string, any>)?.geo_readiness}`
+                  ) : (
+                    <span className="text-xs font-semibold text-slate-400">Data unavailable</span>
+                  )}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">31 citation-readiness gaps</p>
+              <p className="text-[11px] text-slate-500">
+                {issues.filter((i) => (i.category as string) === 'geo' || (i.category as string) === 'ai').length} readiness gaps
+              </p>
               <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                 <div
                   className="bg-purple-500 h-full rounded-full"
-                  style={{ width: `${(latestRun.category_scores as Record<string, any>)?.geo_readiness ?? 68}%` }}
+                  style={{ width: `${(latestRun.category_scores as Record<string, any>)?.geo_readiness ?? 0}%` }}
                 />
               </div>
             </Card>

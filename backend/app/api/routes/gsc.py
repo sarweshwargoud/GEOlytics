@@ -8,6 +8,7 @@ from app.core.auth import get_current_user
 from app.core.database import get_supabase_admin
 from app.services.gsc.models import SearchPerformanceReport
 from app.services.gsc.service import GoogleSearchConsoleService
+from app.services.geo.tavily_provider import TavilyResearchService
 
 router = APIRouter(prefix="/projects/{project_id}/gsc", tags=["Google Search Console"])
 oauth_callback_router = APIRouter(prefix="/gsc", tags=["Google Search Console"])
@@ -17,6 +18,11 @@ class ConnectPropertyRequest(BaseModel):
     site_url: str
     access_token: str
     refresh_token: Optional[str] = None
+
+
+class WebSearchFallbackRequest(BaseModel):
+    query: str
+    competitor_domains: Optional[List[str]] = None
 
 
 def _verify_project_ownership(project_id: str, user_id: str) -> dict:
@@ -155,3 +161,21 @@ async def get_gsc_performance(
         days=days,
         access_token=token,
     )
+
+
+@router.post("/web-search-fallback")
+async def execute_web_search_fallback(
+    project_id: str,
+    payload: WebSearchFallbackRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Executes live web search as fallback when Search Console is unconnected or unavailable."""
+    project = _verify_project_ownership(project_id, current_user["id"])
+    website_url = project.get("website_url", "")
+    tavily = TavilyResearchService()
+    return await tavily.search_baseline(
+        query=payload.query,
+        target_domain=website_url,
+        competitor_domains=payload.competitor_domains,
+    )
+

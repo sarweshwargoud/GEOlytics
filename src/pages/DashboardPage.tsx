@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   Sparkles,
   Sliders,
+  AlertCircle,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -28,29 +29,10 @@ import type {
   ProjectListResponse,
   Recommendation,
   Experiment,
+  SearchPerformanceReport,
+  AuditOverview,
+  TrackedQuery,
 } from '@/types'
-
-// Mock 28-day performance trend for the chart when live GSC history is still accumulating
-const defaultChartData = [
-  { date: 'Sep 1', clicks: 1240, impressions: 38200 },
-  { date: 'Sep 5', clicks: 1480, impressions: 41200 },
-  { date: 'Sep 8', clicks: 1620, impressions: 44100 },
-  { date: 'Sep 12', clicks: 1590, impressions: 43800 },
-  { date: 'Sep 15', clicks: 1820, impressions: 47900 },
-  { date: 'Sep 19', clicks: 1780, impressions: 46200 },
-  { date: 'Sep 22', clicks: 1940, impressions: 49500 },
-  { date: 'Sep 26', clicks: 2110, impressions: 53400 },
-  { date: 'Sep 28', clicks: 2280, impressions: 56100 },
-]
-
-// Mock weekly GEO visibility bars matching Figma
-const geoWeeklyBars = [
-  { week: 'W1', score: 48, label: 'W1' },
-  { week: 'W2', score: 54, label: 'W2' },
-  { week: 'W3', score: 58, label: 'W3' },
-  { week: 'W4', score: 61, label: 'W4' },
-  { week: 'W5', score: 64, label: 'W5' },
-]
 
 export default function DashboardPage() {
   const api = useApi()
@@ -72,6 +54,9 @@ export default function DashboardPage() {
   // Intelligence State
   const [activeExperiments, setActiveExperiments] = useState<Experiment[]>([])
   const [highPriorityRecs, setHighPriorityRecs] = useState<Recommendation[]>([])
+  const [gscReport, setGscReport] = useState<SearchPerformanceReport | null>(null)
+  const [auditOverview, setAuditOverview] = useState<AuditOverview | null>(null)
+  const [geoQueries, setGeoQueries] = useState<TrackedQuery[]>([])
 
   const fetchDashboardData = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -103,15 +88,21 @@ export default function DashboardPage() {
 
   const loadProjectSpecificIntelligence = async (projectId: string) => {
     try {
-      const [recs, exps] = await Promise.all([
+      const [recs, exps, gsc, audit, geo] = await Promise.all([
         api.get<Recommendation[]>(`/api/v1/projects/${projectId}/recommendations`).catch(() => []),
         api.get<Experiment[]>(`/api/v1/projects/${projectId}/experiments`).catch(() => []),
+        api.get<SearchPerformanceReport>(`/api/v1/projects/${projectId}/gsc/performance?days=28`).catch(() => null),
+        api.get<AuditOverview>(`/api/v1/projects/${projectId}/audit`).catch(() => null),
+        api.get<TrackedQuery[]>(`/api/v1/projects/${projectId}/geo/queries`).catch(() => []),
       ])
 
       setActiveExperiments((exps || []).filter((e) => ['measuring', 'running'].includes(e.status)))
       setHighPriorityRecs(
         (recs || []).filter((r) => r.priority === 'high' || r.priority === 'critical').slice(0, 3)
       )
+      setGscReport(gsc)
+      setAuditOverview(audit)
+      setGeoQueries(geo || [])
     } catch {
       // Non-blocking
     }
@@ -146,6 +137,28 @@ export default function DashboardPage() {
   const displayProjectDomain = currentProject?.website_url
     ? currentProject.website_url.replace(/^https?:\/\//, '').replace(/\/$/, '')
     : currentProject?.name || 'atlashealth.io'
+
+  const isGscConnected = Boolean(gscReport?.is_connected)
+
+  // Calculate real GEO visibility metrics
+  const queriesWithCitation = geoQueries.filter((q) => {
+    const v = q.latest_visibility as any
+    if (!v) return false
+    if (typeof v.providers_cited === 'number') return v.providers_cited > 0
+    return Object.values(v).some((check: any) => check?.website_cited || check?.brand_mentioned)
+  }).length
+
+  const geoCitationRate = geoQueries.length > 0 ? Math.round((queriesWithCitation / geoQueries.length) * 100) : null
+  const totalObservedCitations = geoQueries.reduce((acc, q) => {
+    const v = q.latest_visibility as any
+    if (!v) return acc
+    if (typeof v.providers_cited === 'number') return acc + v.providers_cited
+    return acc + Object.values(v).filter((check: any) => check?.website_cited).length
+  }, 0)
+
+  // Chart data from real GSC timeseries
+  const hasTimeseries = isGscConnected && gscReport?.timeseries && gscReport.timeseries.length > 0
+  const gscChartData = hasTimeseries ? gscReport!.timeseries : []
 
   if (loading) {
     return <LoadingState message="Loading intelligence overview..." />
@@ -204,6 +217,25 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* GSC Not Connected Banner */}
+      {!isGscConnected && (
+        <div className="flex items-center justify-between p-3.5 px-4 rounded-xl bg-blue-50/70 border border-blue-200/60 text-xs text-blue-900 animate-scale-in">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle size={15} className="text-blue-600 shrink-0" />
+            <span>
+              Connect Google Search Console to view actual Search Console data.
+            </span>
+          </div>
+          <Link
+            to={`/seo?project=${selectedProjectId}`}
+            className="inline-flex items-center gap-1 font-semibold text-blue-700 hover:text-blue-800 underline shrink-0"
+          >
+            Connect Search Console
+            <ArrowUpRight size={13} />
+          </Link>
+        </div>
+      )}
+
       {/* ── Row 1: 4 Key Metric Cards (Figma Spec) ────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Organic clicks */}
@@ -216,11 +248,18 @@ export default function DashboardPage() {
           </div>
           <div>
             <div className="text-2xl font-bold tracking-tight text-slate-900">
-              <AnimatedNumber value={48612} />
+              {isGscConnected && gscReport?.summary?.total_clicks !== undefined ? (
+                <AnimatedNumber value={gscReport.summary.total_clicks} />
+              ) : (
+                <span className="text-base font-semibold text-slate-400">Data unavailable</span>
+              )}
             </div>
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 mt-1">
-              <span>+12.4%</span>
-              <span className="text-slate-400 font-normal">vs previous 28 days</span>
+            <div className="flex items-center gap-1 text-[11px] font-semibold mt-1">
+              {isGscConnected ? (
+                <span className="text-emerald-600">Source: Google Search Console</span>
+              ) : (
+                <span className="text-slate-400 font-normal">Connect Search Console</span>
+              )}
             </div>
           </div>
         </Card>
@@ -235,11 +274,18 @@ export default function DashboardPage() {
           </div>
           <div>
             <div className="text-2xl font-bold tracking-tight text-slate-900">
-              1.24M
+              {isGscConnected && gscReport?.summary?.total_impressions !== undefined ? (
+                <AnimatedNumber value={gscReport.summary.total_impressions} />
+              ) : (
+                <span className="text-base font-semibold text-slate-400">Data unavailable</span>
+              )}
             </div>
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 mt-1">
-              <span>+8.7%</span>
-              <span className="text-slate-400 font-normal">Search Console</span>
+            <div className="flex items-center gap-1 text-[11px] font-semibold mt-1">
+              {isGscConnected ? (
+                <span className="text-emerald-600">Source: Google Search Console</span>
+              ) : (
+                <span className="text-slate-400 font-normal">Connect Search Console</span>
+              )}
             </div>
           </div>
         </Card>
@@ -254,11 +300,18 @@ export default function DashboardPage() {
           </div>
           <div>
             <div className="text-2xl font-bold tracking-tight text-slate-900">
-              3.92%
+              {isGscConnected && gscReport?.summary?.average_ctr !== undefined ? (
+                `${(gscReport.summary.average_ctr * 100).toFixed(2)}%`
+              ) : (
+                <span className="text-base font-semibold text-slate-400">Data unavailable</span>
+              )}
             </div>
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 mt-1">
-              <span>+0.4%</span>
-              <span className="text-slate-400 font-normal">Top 10 queries</span>
+            <div className="flex items-center gap-1 text-[11px] font-semibold mt-1">
+              {isGscConnected ? (
+                <span className="text-emerald-600">Source: Google Search Console</span>
+              ) : (
+                <span className="text-slate-400 font-normal">Connect Search Console</span>
+              )}
             </div>
           </div>
         </Card>
@@ -273,11 +326,18 @@ export default function DashboardPage() {
           </div>
           <div>
             <div className="text-2xl font-bold tracking-tight text-slate-900">
-              12.8
+              {isGscConnected && gscReport?.summary?.average_position !== undefined ? (
+                gscReport.summary.average_position.toFixed(1)
+              ) : (
+                <span className="text-base font-semibold text-slate-400">Data unavailable</span>
+              )}
             </div>
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 mt-1">
-              <span>+1.6</span>
-              <span className="text-slate-400 font-normal">improved</span>
+            <div className="flex items-center gap-1 text-[11px] font-semibold mt-1">
+              {isGscConnected ? (
+                <span className="text-emerald-600">Source: Google Search Console</span>
+              ) : (
+                <span className="text-slate-400 font-normal">Connect Search Console</span>
+              )}
             </div>
           </div>
         </Card>
@@ -302,44 +362,55 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-4 pt-1">
-            {/* Circular score ring */}
-            <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                <circle
-                  cx="18"
-                  cy="18"
-                  r="15.5"
-                  fill="none"
-                  className="stroke-emerald-100"
-                  strokeWidth="3"
-                />
-                <circle
-                  cx="18"
-                  cy="18"
-                  r="15.5"
-                  fill="none"
-                  className="stroke-emerald-500"
-                  strokeWidth="3"
-                  strokeDasharray="97.4"
-                  strokeDashoffset={97.4 - (97.4 * 87) / 100}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <span className="absolute text-xl font-bold text-slate-900">
-                87
-              </span>
-            </div>
+          {auditOverview?.seo_health_score != null ? (
+            <div className="flex items-center gap-4 pt-1">
+              <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="15.5"
+                    fill="none"
+                    className="stroke-emerald-100"
+                    strokeWidth="3"
+                  />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="15.5"
+                    fill="none"
+                    className="stroke-emerald-500"
+                    strokeWidth="3"
+                    strokeDasharray="97.4"
+                    strokeDashoffset={97.4 - (97.4 * auditOverview.seo_health_score) / 100}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="absolute text-xl font-bold text-slate-900">
+                  {auditOverview.seo_health_score}
+                </span>
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60 w-fit">
-                Healthy · +4
-              </span>
-              <span className="text-[11px] text-slate-600 font-medium">
-                2,418 pages crawled · 19 open issues
-              </span>
+              <div className="flex flex-col gap-1">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60 w-fit">
+                  Score {auditOverview.seo_health_score} / 100
+                </span>
+                <span className="text-[11px] text-slate-600 font-medium">
+                  {auditOverview.total_pages_crawled ?? 0} pages crawled · {auditOverview.total_issues ?? 0} open issues
+                </span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-3 pt-1">
+              <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0">
+                <span className="text-xs font-semibold text-slate-400">N/A</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-slate-700">Data unavailable</span>
+                <span className="text-[11px] text-slate-400">Run a technical SEO crawl to analyze</span>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Card 2: GEO / AI visibility */}
@@ -359,19 +430,31 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-4 pt-1">
-            <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200/60 flex items-center justify-center shrink-0">
-              <span className="text-2xl font-bold text-blue-600">64%</span>
+          {geoCitationRate !== null ? (
+            <div className="flex items-center gap-4 pt-1">
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200/60 flex items-center justify-center shrink-0">
+                <span className="text-2xl font-bold text-blue-600">{geoCitationRate}%</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/60 w-fit">
+                  Source: AI Search Checks
+                </span>
+                <span className="text-[11px] text-slate-600 font-medium">
+                  {geoQueries.length} tracked queries · {totalObservedCitations} observed citations
+                </span>
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/60 w-fit">
-                +6.8% observed
-              </span>
-              <span className="text-[11px] text-slate-600 font-medium">
-                42 tracked queries · 118 observed citations
-              </span>
+          ) : (
+            <div className="flex items-center gap-3 pt-1">
+              <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0">
+                <span className="text-xs font-semibold text-slate-400">N/A</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-slate-700">Data unavailable</span>
+                <span className="text-[11px] text-slate-400">No tracked queries · Add queries in GEO Intelligence</span>
+              </div>
             </div>
-          </div>
+          )}
         </Card>
 
         {/* Card 3: Citation activity */}
@@ -391,19 +474,31 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-4 pt-1">
-            <div className="w-16 h-16 rounded-2xl bg-purple-50 border border-purple-200/60 flex items-center justify-center shrink-0">
-              <span className="text-2xl font-bold text-purple-700">118</span>
+          {geoQueries.length > 0 ? (
+            <div className="flex items-center gap-4 pt-1">
+              <div className="w-16 h-16 rounded-2xl bg-purple-50 border border-purple-200/60 flex items-center justify-center shrink-0">
+                <span className="text-2xl font-bold text-purple-700">{totalObservedCitations}</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60 w-fit">
+                  Source: AI Search Providers
+                </span>
+                <span className="text-[11px] text-slate-600 font-medium">
+                  {geoQueries.length} queries actively tracked
+                </span>
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60 w-fit">
-                24 new this week
-              </span>
-              <span className="text-[11px] text-slate-600 font-medium">
-                OpenAI 41 · Gemini 36 · Claude 29 · Grok 12
-              </span>
+          ) : (
+            <div className="flex items-center gap-3 pt-1">
+              <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0">
+                <span className="text-xs font-semibold text-slate-400">N/A</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-slate-700">Data unavailable</span>
+                <span className="text-[11px] text-slate-400">No citations recorded yet</span>
+              </div>
             </div>
-          </div>
+          )}
         </Card>
       </div>
 
@@ -417,7 +512,7 @@ export default function DashboardPage() {
                 Organic search performance
               </h3>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Clicks and impressions · Last 28 days
+                {isGscConnected ? 'Clicks and impressions · Source: Google Search Console' : 'Search Console connection required'}
               </p>
             </div>
             <Link
@@ -428,37 +523,58 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-4 text-xs font-semibold">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#2563EB]" />
-              <span className="text-slate-700">Clicks 48.6k</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#93C5FD]" />
-              <span className="text-slate-500">Impressions 1.24M</span>
-            </div>
-          </div>
+          {hasTimeseries ? (
+            <>
+              <div className="flex items-center gap-4 text-xs font-semibold">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#2563EB]" />
+                  <span className="text-slate-700">Clicks {gscReport?.summary?.total_clicks?.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#93C5FD]" />
+                  <span className="text-slate-500">Impressions {gscReport?.summary?.total_impressions?.toLocaleString()}</span>
+                </div>
+              </div>
 
-          <div className="h-56 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={defaultChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} />
-                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} />
-                <Tooltip
-                  cursor={{ fill: '#F8FAFC' }}
-                  contentStyle={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '8px',
-                    border: '1px solid #E2E8F0',
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                    fontSize: '11px',
-                  }}
-                />
-                <Bar dataKey="clicks" fill="#2563EB" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+              <div className="h-56 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={gscChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} />
+                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} />
+                    <Tooltip
+                      cursor={{ fill: '#F8FAFC' }}
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '8px',
+                        border: '1px solid #E2E8F0',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                        fontSize: '11px',
+                      }}
+                    />
+                    <Bar dataKey="clicks" fill="#2563EB" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </>
+          ) : (
+            <div className="h-56 w-full flex flex-col items-center justify-center text-center p-6 rounded-xl bg-slate-50/60 border border-dashed border-slate-200">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2">
+                <MousePointer size={18} />
+              </div>
+              <p className="text-xs font-semibold text-slate-800">
+                Connect Google Search Console to view actual Search Console data.
+              </p>
+              <p className="text-[11px] text-slate-500 mt-1 max-w-sm">
+                Real performance charts will render once your Search Console property is connected.
+              </p>
+              <Link to={`/seo?project=${selectedProjectId}`} className="mt-3">
+                <Button size="sm" variant="outline" className="text-xs">
+                  Connect Google Search Console
+                </Button>
+              </Link>
+            </div>
+          )}
         </Card>
 
         {/* Right: Observed GEO visibility */}
@@ -469,7 +585,7 @@ export default function DashboardPage() {
                 Observed GEO visibility
               </h3>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Presence and citations by provider
+                Presence and citations across AI providers
               </p>
             </div>
             <Link
@@ -480,33 +596,51 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="h-56 w-full pt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={geoWeeklyBars} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} />
-                <YAxis domain={[0, 100]} tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} />
-                <Tooltip
-                  cursor={{ fill: '#F8FAFC' }}
-                  contentStyle={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '8px',
-                    border: '1px solid #E2E8F0',
-                    fontSize: '11px',
-                  }}
-                  formatter={(val: any) => [`${val}%`, 'Visibility Score']}
-                />
-                <Bar dataKey="score" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-600 font-medium">
-            <span>OpenAI 72%</span>
-            <span>Gemini 66%</span>
-            <span>Claude 61%</span>
-            <span>Grok 54%</span>
-          </div>
+          {geoQueries.length > 0 ? (
+            <div className="h-56 w-full pt-2 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-slate-600">Tracked Queries</span>
+                  <span className="font-bold text-slate-900">{geoQueries.length}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-slate-600">Queries with Citation</span>
+                  <span className="font-bold text-emerald-600">{queriesWithCitation}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-slate-600">Total Citations Observed</span>
+                  <span className="font-bold text-purple-600">{totalObservedCitations}</span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mt-2">
+                  <div
+                    className="bg-blue-600 h-full rounded-full transition-all"
+                    style={{ width: `${geoCitationRate ?? 0}%` }}
+                  />
+                </div>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                <span>Coverage: {geoCitationRate ?? 0}%</span>
+                <span className="font-medium text-blue-600">Source: AI Search Checks</span>
+              </div>
+            </div>
+          ) : (
+            <div className="h-56 w-full flex flex-col items-center justify-center text-center p-6 rounded-xl bg-slate-50/60 border border-dashed border-slate-200">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-2">
+                <Sparkles size={18} />
+              </div>
+              <p className="text-xs font-semibold text-slate-800">
+                Data unavailable
+              </p>
+              <p className="text-[11px] text-slate-500 mt-1 max-w-sm">
+                Add search queries to monitor citations across OpenAI, Gemini, Claude, and Perplexity.
+              </p>
+              <Link to={`/geo?project=${selectedProjectId}`} className="mt-3">
+                <Button size="sm" variant="outline" className="text-xs">
+                  Add Tracked Queries
+                </Button>
+              </Link>
+            </div>
+          )}
         </Card>
       </div>
 

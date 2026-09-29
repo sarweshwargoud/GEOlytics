@@ -195,15 +195,25 @@ export default function GeoVisibilityPage() {
     if (!tavilyQuery.trim() || !selectedProjectId) return
     setTavilyLoading(true)
     setErrorMessage('')
+    console.log('[Tavily] Initiating live web research for query:', tavilyQuery.trim(), 'Project:', selectedProjectId)
 
     try {
       const res = await api.post<CompetitorResearchResult>(
         `/api/v1/projects/${selectedProjectId}/geo/research`,
         { query: tavilyQuery.trim() }
       )
+      console.log('[Tavily] Live search response received:', res)
+      if (res.status === 'failed' || res.error) {
+        setErrorMessage(res.error || res.message || 'Tavily search failed. Please verify API configuration.')
+      }
       setTavilyResult(res)
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : 'Tavily research failed')
+      console.error('[Tavily] API error:', err)
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : 'Tavily search failed. Please check the Tavily API configuration.'
+      )
     } finally {
       setTavilyLoading(false)
     }
@@ -304,13 +314,18 @@ export default function GeoVisibilityPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {providers.map((p) => {
             const isConnected = p.status === 'connected'
-            const defaults: Record<string, number> = { openai: 72, gemini: 66, claude: 61, grok: 38, tavily: 84 }
+            const isTavily = p.provider === 'tavily'
             let cited = 0
+            let testedCount = 0
             queries.forEach((q) => {
               const resp = q.latest_visibility?.responses?.find((r) => r.provider === p.provider)
-              if (resp?.website_cited || resp?.brand_mentioned) cited++
+              if (resp) {
+                testedCount++
+                if (resp.website_cited || resp.brand_mentioned) cited++
+              }
             })
-            const citationPct = queries.length > 0 && cited > 0 ? Math.round((cited / queries.length) * 100) : (defaults[p.provider] ?? 60)
+            const hasData = testedCount > 0
+            const citationPct = hasData ? Math.round((cited / testedCount) * 100) : null
 
             return (
               <Card
@@ -338,21 +353,44 @@ export default function GeoVisibilityPage() {
                       className="text-[9px] py-0"
                       dot
                     >
-                      {isConnected ? 'Live' : p.status}
+                      {isConnected ? (isTavily ? 'Active' : 'Live') : p.status}
                     </Badge>
                   </div>
 
-                  <div className="flex items-baseline justify-between mb-1.5">
-                    <span className="text-2xl font-extrabold text-slate-900">{citationPct}%</span>
-                    <span className="text-[11px] text-slate-400 font-medium">citation rate</span>
-                  </div>
-
-                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden mb-2">
-                    <div
-                      className="bg-purple-600 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${citationPct}%` }}
-                    />
-                  </div>
+                  {isTavily ? (
+                    <div className="mb-2">
+                      <div className="text-lg font-bold text-slate-900">
+                        {isConnected ? 'Web Grounding' : 'Data unavailable'}
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-medium">
+                        Public web & competitor search
+                      </div>
+                    </div>
+                  ) : hasData ? (
+                    <div className="mb-2">
+                      <div className="flex items-baseline justify-between mb-1.5">
+                        <span className="text-2xl font-extrabold text-slate-900">{citationPct}%</span>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          {cited}/{testedCount} cited
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="bg-purple-600 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${citationPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mb-2">
+                      <div className="text-sm font-bold text-slate-400">
+                        Data unavailable
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-medium">
+                        {queries.length === 0 ? 'No tracked queries' : 'Check not run yet'}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="text-[10px] font-mono text-slate-400 mb-1 truncate">
                     {p.model}
@@ -585,42 +623,94 @@ export default function GeoVisibilityPage() {
 
         {tavilyResult && (
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 animate-slide-down">
-            <div className="text-xs font-bold text-slate-800">
-              Identified Competitor & Source Domains ({tavilyResult.identified_domains.length}):
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {tavilyResult.identified_domains.map((dom) => (
-                <span
-                  key={dom}
-                  className="px-2.5 py-1 rounded-md text-[11px] font-mono bg-white border border-slate-200 text-slate-700 shadow-2xs"
-                >
-                  {dom}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-200 gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-slate-800">
+                  Search Results for: <span className="text-blue-600">"{tavilyResult.query}"</span>
                 </span>
-              ))}
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Source: Tavily Web Search
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-500 font-medium">
+                {tavilyResult.results_count || (tavilyResult.direct_results || tavilyResult.results || []).length} results found
+              </span>
             </div>
 
-            <div className="pt-3 border-t border-slate-200">
+            {tavilyResult.summary && (
+              <p className="text-xs text-slate-600 leading-relaxed bg-white p-2.5 rounded-lg border border-slate-200">
+                {tavilyResult.summary}
+              </p>
+            )}
+
+            {/* Identified Competitor & Source Domains */}
+            {((tavilyResult.identified_domains || tavilyResult.competitor_domains_found || []).length > 0) ? (
+              <div>
+                <div className="text-xs font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
+                  <span>Identified Competitor & Source Domains</span>
+                  <span className="text-[11px] font-normal text-slate-400">
+                    ({(tavilyResult.identified_domains || tavilyResult.competitor_domains_found || []).length})
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(tavilyResult.identified_domains || tavilyResult.competitor_domains_found || []).map((dom) => (
+                    <span
+                      key={dom}
+                      className="px-2.5 py-1 rounded-md text-[11px] font-mono bg-white border border-slate-200 text-slate-700 shadow-2xs flex items-center gap-1"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                      {dom}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px] text-slate-400">No competitor domains identified in top search results.</p>
+            )}
+
+            {/* Top Web Source Results */}
+            <div className="pt-2">
               <div className="text-xs font-bold text-slate-800 mb-2">
                 Top Web Source Results:
               </div>
-              <div className="space-y-2">
-                {tavilyResult.direct_results.map((r, idx) => (
-                  <div key={idx} className="bg-white p-3 rounded-lg border border-slate-200 text-xs shadow-2xs">
-                    <a
-                      href={r.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-semibold text-blue-600 hover:underline flex items-center gap-1"
-                    >
-                      <span>{r.title}</span>
-                      <ExternalLink size={11} />
-                    </a>
-                    <p className="text-[11px] text-slate-500 line-clamp-2 mt-1 leading-relaxed">
-                      {r.content}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              {(tavilyResult.direct_results || tavilyResult.results || []).length > 0 ? (
+                <div className="space-y-2">
+                  {(tavilyResult.direct_results || tavilyResult.results || []).map((r, idx) => (
+                    <div key={idx} className="bg-white p-3 rounded-lg border border-slate-200 text-xs shadow-2xs space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <a
+                          href={r.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-semibold text-blue-600 hover:underline flex items-center gap-1 truncate"
+                        >
+                          <span className="truncate">{r.title || r.url}</span>
+                          <ExternalLink size={11} className="shrink-0" />
+                        </a>
+                        {r.domain && (
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 shrink-0">
+                            {r.domain}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-600 line-clamp-3 leading-relaxed">
+                        {r.content || r.snippet || 'No snippet content returned.'}
+                      </p>
+                      <div className="text-[10px] text-slate-400 pt-1 flex items-center gap-2">
+                        <span>Source: Tavily Web Search</span>
+                        <span>•</span>
+                        <a href={r.url} target="_blank" rel="noreferrer" className="text-slate-500 hover:underline truncate">
+                          {r.url}
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-500 text-center">
+                  No results returned for this search.
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -219,8 +219,10 @@ export interface GSCPageRow {
 }
 
 export interface SearchPerformanceReport {
-  site_url: string
-  days: number
+  is_connected?: boolean
+  site_url?: string
+  days?: number
+  latest_sync?: any
   summary: GSCPerformanceSummary
   timeseries: GSCTimeseriesPoint[]
   top_queries: GSCQueryRow[]
@@ -327,15 +329,36 @@ export interface TrackedQueryCreate {
 
 export interface CompetitorResearchResult {
   query: string
-  direct_results: Array<{
+  status?: string
+  source?: string
+  error?: string
+  message?: string
+  direct_results?: Array<{
     title: string
     url: string
-    content: string
-    score: number
+    content?: string
+    snippet?: string
+    domain?: string
+    score?: number
+    is_own_domain?: boolean
+    is_competitor?: boolean
   }>
-  identified_domains: string[]
-  competitor_pages_found: number
-  summary: string
+  results?: Array<{
+    title: string
+    url: string
+    content?: string
+    snippet?: string
+    domain?: string
+    score?: number
+    is_own_domain?: boolean
+    is_competitor?: boolean
+  }>
+  identified_domains?: string[]
+  competitor_domains_found?: string[]
+  competitor_pages_found?: number
+  results_count?: number
+  target_domain_found?: boolean
+  summary?: string
 }
 
 // ─── Phase 4: LangGraph & Hindsight Recommendation Models ─────
